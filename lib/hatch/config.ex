@@ -9,7 +9,8 @@ defmodule Hatch.Config do
     :api_base,
     :api_key,
     :tamago_go,
-    :build_timeout_ms
+    :build_timeout_ms,
+    :spec_text
   ]
 
   @type t :: %__MODULE__{
@@ -21,7 +22,8 @@ defmodule Hatch.Config do
           api_base: String.t(),
           api_key: String.t(),
           tamago_go: String.t(),
-          build_timeout_ms: pos_integer()
+          build_timeout_ms: pos_integer(),
+          spec_text: String.t() | nil
         }
 
   @spec from_argv([String.t()]) ::
@@ -83,6 +85,10 @@ defmodule Hatch.Config do
     parse_argv_impl(rest, [{:tree, path} | acc])
   end
 
+  defp parse_argv_impl(["--spec", path | rest], acc) do
+    parse_argv_impl(rest, [{:spec, path} | acc])
+  end
+
   defp parse_argv_impl([flag | _], _acc) when is_binary(flag) do
     if String.starts_with?(flag, "--") do
       {:error, %{code: :unknown_flag, message: "Unknown flag: #{flag}"}}
@@ -98,9 +104,11 @@ defmodule Hatch.Config do
   defp load_env({argv_opts, env_map}) do
     kb = Keyword.get(argv_opts, :kb)
     tree = Keyword.get(argv_opts, :tree)
+    spec = Keyword.get(argv_opts, :spec)
 
     with :ok <- validate_kb(kb),
          :ok <- validate_tree(tree),
+         {:ok, spec_text} <- load_spec(spec),
          {:ok, model} <- get_env_required(env_map, "HATCH_MODEL"),
          {:ok, api_base} <- get_env_required(env_map, "HATCH_API_BASE"),
          {:ok, api_key} <- get_env_required(env_map, "HATCH_API_KEY") do
@@ -132,7 +140,8 @@ defmodule Hatch.Config do
          api_base: api_base_normalized,
          api_key: api_key,
          tamago_go: tamago_go,
-         build_timeout_ms: build_timeout_ms
+         build_timeout_ms: build_timeout_ms,
+         spec_text: spec_text
        }}
     end
   end
@@ -180,6 +189,27 @@ defmodule Hatch.Config do
 
       val ->
         {:ok, val}
+    end
+  end
+
+  defp load_spec(nil) do
+    {:ok, nil}
+  end
+
+  defp load_spec(spec_path) do
+    expanded = Path.expand(spec_path)
+
+    if String.ends_with?(expanded, ".pdf") or String.ends_with?(expanded, ".PDF") do
+      {:error,
+       %{
+         code: :unsupported,
+         message: "schematics are ingested offline; v1 takes markdown or board.toml"
+       }}
+    else
+      case File.read(expanded) do
+        {:ok, content} -> {:ok, content}
+        {:error, _} -> {:error, %{code: :not_found, message: "Spec file not found: #{spec_path}"}}
+      end
     end
   end
 end
