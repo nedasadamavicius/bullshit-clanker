@@ -43,9 +43,20 @@ defmodule Hatch.BoardJob.Supervisor do
   end
 
   @impl true
-  def init(_opts) do
+  def init(opts) do
+    session_id = Keyword.fetch!(opts, :session_id)
+    # Get config from opts or from persistent_term
+    config = Keyword.get(opts, :config) || Hatch.Config.get()
+
     children = [
-      {Hatch.Proposal.StoreOwner, []}
+      {Task.Supervisor, name: {:via, Registry, {Hatch.Registry, {:task_supervisor, session_id}}}},
+      {Hatch.Proposal.StoreOwner, []},
+      {Hatch.Session,
+       [
+         session_id: session_id,
+         config: config,
+         task_supervisor: {:via, Registry, {Hatch.Registry, {:task_supervisor, session_id}}}
+       ]}
     ]
 
     Supervisor.init(children, strategy: :one_for_one)

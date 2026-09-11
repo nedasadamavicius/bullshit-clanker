@@ -1,10 +1,16 @@
 defmodule Hatch.Model.Fake do
   @behaviour Hatch.Model
 
-  defstruct responses: [], messages: [], tools: [], position: 0
+  defstruct script_turns: [], messages: [], tools: [], turn_index: 0
 
-  def script(responses) do
-    %__MODULE__{responses: responses}
+  def script(response_items) when is_list(response_items) do
+    # Wrap single response set into a list of turns
+    %__MODULE__{script_turns: [response_items]}
+  end
+
+  def script_many(response_turns) when is_list(response_turns) do
+    # Multiple turns, each turn is a list of response items
+    %__MODULE__{script_turns: response_turns}
   end
 
   @impl true
@@ -16,21 +22,29 @@ defmodule Hatch.Model.Fake do
     config = %{config | messages: messages, tools: tools}
     Application.put_env(:hatch, :fake_model, config)
 
-    # Emit responses in sequence
-    result = emit_responses(config.responses, config.position, stream_callback)
+    # Get responses for this turn
+    current_responses =
+      if config.turn_index < length(config.script_turns) do
+        Enum.at(config.script_turns, config.turn_index)
+      else
+        []
+      end
 
-    # Update position
-    new_position = config.position + Enum.count(config.responses)
-    Application.put_env(:hatch, :fake_model, %{config | position: new_position})
+    # Emit responses
+    result = emit_responses(current_responses, stream_callback)
+
+    # Move to next turn
+    new_config = %{config | turn_index: config.turn_index + 1}
+    Application.put_env(:hatch, :fake_model, new_config)
 
     result
   end
 
-  defp emit_responses([], _position, _callback) do
+  defp emit_responses([], _callback) do
     {:ok, %{text: "", tool_calls: [], finish_reason: "stop", usage: %{}}}
   end
 
-  defp emit_responses(responses, _position, callback) do
+  defp emit_responses(responses, callback) do
     text_parts = []
     tool_calls = []
 
