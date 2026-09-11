@@ -26,9 +26,28 @@ defmodule Hatch.BoardJob.Supervisor do
     )
   end
 
+  @spec get_proposal_store(pid()) :: :ets.tid()
+  def get_proposal_store(supervisor_pid) do
+    case Supervisor.which_children(supervisor_pid) do
+      [{Hatch.Proposal.StoreOwner, pid, :worker, _modules}] when is_pid(pid) ->
+        Hatch.Proposal.StoreOwner.get_table(pid)
+
+      [] ->
+        # Table not yet created, create it lazily
+        Hatch.Proposal.Store.new()
+
+      _other ->
+        # Unexpected state, create one
+        Hatch.Proposal.Store.new()
+    end
+  end
+
   @impl true
   def init(_opts) do
-    children = []
+    children = [
+      {Hatch.Proposal.StoreOwner, []}
+    ]
+
     Supervisor.init(children, strategy: :one_for_one)
   end
 
