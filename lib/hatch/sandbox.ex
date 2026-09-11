@@ -91,20 +91,24 @@ defmodule Hatch.Sandbox do
     end
   end
 
-  # Resolve root once and memoize in persistent_term to handle symlinked roots
+  # Resolve root once per input path and memoize in persistent_term to handle
+  # symlinked roots. Keyed by {key, path} — not just key — since kb_root/tree_root
+  # can differ across sessions/tests within the same node.
   defp resolve_and_memoize_root(path, key) do
-    case :persistent_term.get(key, nil) do
+    cache_key = {key, path}
+
+    case :persistent_term.get(cache_key, nil) do
       nil ->
         expanded = Path.expand(path)
 
         case resolve_symlinks_for_root(expanded, 0) do
           {:ok, resolved} ->
-            :persistent_term.put(key, resolved)
+            :persistent_term.put(cache_key, resolved)
             resolved
 
           {:error, _} ->
             # If root resolution fails, use expanded path
-            :persistent_term.put(key, expanded)
+            :persistent_term.put(cache_key, expanded)
             expanded
         end
 
