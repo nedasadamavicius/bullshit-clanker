@@ -4,7 +4,7 @@ defmodule Hatch.Model.OpenAI do
 
   @impl true
   def chat(messages, opts, stream_callback) do
-    config = Application.get_env(:hatch, :config)
+    config = Hatch.Config.get()
     model = opts[:model] || config.model
     timeout_ms = opts[:timeout_ms] || 180_000
     tools = opts[:tools] || []

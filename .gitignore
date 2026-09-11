@@ -25,3 +25,6 @@ hatch-*.tar
 # Generated KB index, rebuilt from board.toml on demand (I6).
 index.sqlite
 
+# Compiled escript binary.
+/hatch
+
