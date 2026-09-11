@@ -51,7 +51,12 @@ defmodule Hatch.Session do
 
   @spec set_draft(String.t(), Board.t()) :: :ok
   def set_draft(session_id, draft) do
-    GenServer.cast(via_tuple(session_id), {:set_draft, draft})
+    GenServer.call(via_tuple(session_id), {:set_draft, draft})
+  end
+
+  @spec usage(String.t()) :: map()
+  def usage(session_id) do
+    GenServer.call(via_tuple(session_id), :get_usage)
   end
 
   @spec note_applied(String.t(), any(), [String.t()]) :: :ok
@@ -78,6 +83,7 @@ defmodule Hatch.Session do
     task_supervisor = Keyword.fetch!(opts, :task_supervisor)
 
     read_log = ReadLog.new()
+    proposal_store = lookup_proposal_store(session_id)
     system_prompt = Prompt.system(config, nil)
 
     state = %{
@@ -92,7 +98,9 @@ defmodule Hatch.Session do
         }
       ],
       read_log: read_log,
+      proposal_store: proposal_store,
       draft: nil,
+      usage: %{},
       turn: nil,
       cancelled?: false,
       task_supervisor: task_supervisor
@@ -114,23 +122,6 @@ defmodule Hatch.Session do
     end
   end
 
-  def handle_cast({:set_draft, draft}, state) do
-    # Update draft and regenerate system prompt
-    system_prompt = Prompt.system(state.config, draft)
-
-    new_messages = [
-      %{
-        role: :system,
-        content: system_prompt,
-        tool_calls: nil,
-        tool_call_id: nil
-      }
-      | Enum.drop(state.messages, 1)
-    ]
-
-    {:noreply, %{state | draft: draft, messages: new_messages}}
-  end
-
   def handle_cast(:note_applied, state) do
     {:noreply, state}
   end
@@ -143,7 +134,29 @@ defmodule Hatch.Session do
     {:noreply, state}
   end
 
+  def handle_cast({:add_usage, usage}, state) when is_map(usage) do
+    {:noreply, %{state | usage: merge_usage(state.usage, usage)}}
+  end
+
+  def handle_cast({:add_usage, _}, state), do: {:noreply, state}
+
   @impl true
+  def handle_call({:set_draft, draft}, _from, state) do
+    system_prompt = Prompt.system(state.config, draft)
+
+    new_messages = [
+      %{
+        role: :system,
+        content: system_prompt,
+        tool_calls: nil,
+        tool_call_id: nil
+      }
+      | Enum.drop(state.messages, 1)
+    ]
+
+    {:reply, :ok, %{state | draft: draft, messages: new_messages}}
+  end
+
   def handle_call(:cancel, _from, state) do
     # Mark as cancelled and signal any running task
     new_state = %{state | cancelled?: true}
@@ -163,22 +176,29 @@ defmodule Hatch.Session do
     {:reply, state.messages, state}
   end
 
+  def handle_call(:get_usage, _from, state) do
+    {:reply, state.usage || %{}, state}
+  end
+
   def handle_call(:is_cancelled?, _from, state) do
     {:reply, state.cancelled?, state}
   end
 
   @impl true
-  def handle_info({ref, result}, state) when is_reference(ref) do
-    # Task completed with result (messages list)
+  def handle_info({ref, {:turn, messages, reason}}, state) when is_reference(ref) do
     case state.turn do
       %{task: %Task{ref: ^ref}} ->
-        # Update messages with the result from the turn and clear turn state
-        new_state = %{state | messages: result, turn: nil, cancelled?: false}
+        new_state = %{state | messages: messages, turn: nil, cancelled?: false}
+        Events.broadcast(state.session_id, %{type: :turn_finished, reason: reason})
         {:noreply, new_state}
 
       _ ->
         {:noreply, state}
     end
+  end
+
+  def handle_info({ref, result}, state) when is_reference(ref) and is_list(result) do
+    handle_info({ref, {:turn, result, :ok}}, state)
   end
 
   def handle_info({:DOWN, _ref, :process, _pid, reason}, state) do
@@ -217,6 +237,7 @@ defmodule Hatch.Session do
           new_messages,
           state.read_log,
           state.draft,
+          state.proposal_store,
           1
         )
       end)
@@ -229,7 +250,8 @@ defmodule Hatch.Session do
      }}
   end
 
-  defp run_turn(session_id, _config, messages, _read_log, _draft, step) when step > @max_steps do
+  defp run_turn(session_id, _config, messages, _read_log, _draft, _proposal_store, step)
+       when step > @max_steps do
     # Max steps reached, mark as done
     system_note = %{
       role: :system,
@@ -239,20 +261,19 @@ defmodule Hatch.Session do
     }
 
     bounded = Transcript.bound([system_note | messages], nil)
-    Events.broadcast(session_id, %{type: :turn_finished, reason: :max_steps})
-    bounded
+    {:turn, bounded, :max_steps}
   end
 
-  defp run_turn(session_id, config, messages, read_log, draft, step) do
+  defp run_turn(session_id, config, messages, read_log, draft, proposal_store, step) do
     model_client = Application.get_env(:hatch, :model_client, Hatch.Model.OpenAI)
 
-    # Build tool context
     tool_ctx = %{
       session_id: session_id,
       read_log: read_log,
-      proposal_store: nil,
+      proposal_store: proposal_store,
       kb_root: config.kb_root,
-      tree_root: config.tree_root
+      tree_root: config.tree_root,
+      draft: draft
     }
 
     case model_client.chat(
@@ -279,8 +300,7 @@ defmodule Hatch.Session do
           message: err.message
         })
 
-        Events.broadcast(session_id, %{type: :turn_finished, reason: :error})
-        messages
+        {:turn, messages, :error}
     end
   end
 
@@ -298,7 +318,8 @@ defmodule Hatch.Session do
   end
 
   defp handle_model_result(session_id, config, messages, read_log, draft, step, result, tool_ctx) do
-    # Append assistant message
+    record_usage(session_id, Map.get(result, :usage))
+
     assistant_msg = %{
       role: :assistant,
       content: result.text,
@@ -310,7 +331,6 @@ defmodule Hatch.Session do
 
     case result.tool_calls do
       [] ->
-        # No tool calls, turn finished
         bounded = Transcript.bound(messages_with_assistant, nil)
 
         Events.broadcast(session_id, %{
@@ -318,11 +338,9 @@ defmodule Hatch.Session do
           text: result.text
         })
 
-        Events.broadcast(session_id, %{type: :turn_finished, reason: :ok})
-        bounded
+        {:turn, bounded, :ok}
 
       tool_calls ->
-        # Process tool calls sequentially
         case process_tool_calls(
                session_id,
                config,
@@ -332,13 +350,19 @@ defmodule Hatch.Session do
                tool_ctx
              ) do
           {:continue, messages_after_tools} ->
-            # Loop back for another model call
-            run_turn(session_id, config, messages_after_tools, read_log, draft, step + 1)
+            run_turn(
+              session_id,
+              config,
+              messages_after_tools,
+              read_log,
+              draft,
+              tool_ctx.proposal_store,
+              step + 1
+            )
 
           {:cancelled, messages_with_cancellation} ->
             bounded = Transcript.bound(messages_with_cancellation, nil)
-            Events.broadcast(session_id, %{type: :turn_finished, reason: :cancelled})
-            bounded
+            {:turn, bounded, :cancelled}
         end
     end
   end
@@ -532,4 +556,29 @@ defmodule Hatch.Session do
   defp via_tuple(session_id) do
     {:via, Registry, {Hatch.Registry, {:session, session_id}}}
   end
+
+  defp lookup_proposal_store(session_id) do
+    case Registry.lookup(Hatch.Registry, {:proposal_store, session_id}) do
+      [{pid, _}] -> Hatch.Proposal.StoreOwner.get_table(pid)
+      [] -> Hatch.Proposal.Store.new()
+    end
+  end
+
+  defp record_usage(session_id, usage) when is_map(usage) and map_size(usage) > 0 do
+    GenServer.cast(via_tuple(session_id), {:add_usage, usage})
+  end
+
+  defp record_usage(_session_id, _), do: :ok
+
+  defp merge_usage(a, b) when is_map(a) and is_map(b) do
+    Map.merge(a, b, fn _k, v1, v2 ->
+      cond do
+        is_integer(v1) and is_integer(v2) -> v1 + v2
+        true -> v2
+      end
+    end)
+  end
+
+  defp merge_usage(_, b) when is_map(b), do: b
+  defp merge_usage(a, _), do: a
 end

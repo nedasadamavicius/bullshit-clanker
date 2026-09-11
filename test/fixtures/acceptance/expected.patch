@@ -1,0 +1,10 @@
+diff --git a/board/fsl/board_a/board.go b/board/fsl/board_a/board.go
+index 646fe19..bea75b3 100644
+--- a/board/fsl/board_a/board.go
++++ b/board/fsl/board_a/board.go
+@@ -17,4 +17,5 @@ var Pinmux = [][3]string{
+ 	{"UART1_RX", "UART1_RX_DATA", "ALT0"},
+ 	{"GPIO1_IO01", "GPIO1_IO01", "ALT5"},
+ 	{"GPIO1_IO02", "GPIO1_IO02", "ALT5"},
++	{"GPIO1_IO03", "GPIO1_IO03", "ALT5"},
+ }

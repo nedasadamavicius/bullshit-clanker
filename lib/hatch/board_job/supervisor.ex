@@ -27,18 +27,23 @@ defmodule Hatch.BoardJob.Supervisor do
   end
 
   @spec get_proposal_store(pid()) :: :ets.tid()
-  def get_proposal_store(supervisor_pid) do
-    case Supervisor.which_children(supervisor_pid) do
-      [{Hatch.Proposal.StoreOwner, pid, :worker, _modules}] when is_pid(pid) ->
-        Hatch.Proposal.StoreOwner.get_table(pid)
+  def get_proposal_store(supervisor_pid) when is_pid(supervisor_pid) do
+    children = Supervisor.which_children(supervisor_pid)
 
-      [] ->
-        # Table not yet created, create it lazily
-        Hatch.Proposal.Store.new()
+    case Enum.find(children, fn
+           {Hatch.Proposal.StoreOwner, pid, :worker, _} when is_pid(pid) -> true
+           _ -> false
+         end) do
+      {_, pid, _, _} -> Hatch.Proposal.StoreOwner.get_table(pid)
+      nil -> Hatch.Proposal.Store.new()
+    end
+  end
 
-      _other ->
-        # Unexpected state, create one
-        Hatch.Proposal.Store.new()
+  @spec get_proposal_store(String.t()) :: :ets.tid()
+  def get_proposal_store(session_id) when is_binary(session_id) do
+    case Registry.lookup(Hatch.Registry, {:proposal_store, session_id}) do
+      [{pid, _}] -> Hatch.Proposal.StoreOwner.get_table(pid)
+      [] -> Hatch.Proposal.Store.new()
     end
   end
 
@@ -50,7 +55,7 @@ defmodule Hatch.BoardJob.Supervisor do
 
     children = [
       {Task.Supervisor, name: {:via, Registry, {Hatch.Registry, {:task_supervisor, session_id}}}},
-      {Hatch.Proposal.StoreOwner, []},
+      {Hatch.Proposal.StoreOwner, [session_id: session_id]},
       {Hatch.Session,
        [
          session_id: session_id,

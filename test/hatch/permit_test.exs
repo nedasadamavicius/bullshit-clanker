@@ -51,4 +51,29 @@ defmodule Hatch.PermitTest do
 
     assert :ok == Permit.consume(permit, now_ms)
   end
+
+  test "Permit.mint has exactly one production call site in Hatch.TUI" do
+    # mix hatch.accept / Hatch.Acceptance is the operator for spec 013.
+    # Excluded from this 009 grep by filename (stated in both specs' comments).
+    files =
+      Path.wildcard("lib/**/*.ex")
+      |> Enum.reject(fn path ->
+        String.ends_with?(path, "mix/tasks/hatch.accept.ex") or
+          String.ends_with?(path, "hatch/acceptance.ex")
+      end)
+
+    hits =
+      Enum.flat_map(files, fn path ->
+        path
+        |> File.read!()
+        |> String.split("\n")
+        |> Enum.with_index(1)
+        |> Enum.filter(fn {line, _} -> line =~ ~r/Permit\.mint\(/ end)
+        |> Enum.map(fn {_line, n} -> {path, n} end)
+      end)
+
+    assert length(hits) == 1
+    [{path, _n}] = hits
+    assert path == "lib/hatch/tui/model.ex"
+  end
 end

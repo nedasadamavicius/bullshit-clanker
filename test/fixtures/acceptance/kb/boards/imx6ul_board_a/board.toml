@@ -1,0 +1,32 @@
+id = "imx6ul_board_a"
+soc = "imx6ul"
+goarch = "arm"
+goarm = "7"
+ram_start = "0x80000000"
+ram_size = "0x20000000"
+uart = "UART1"
+peripherals = ["uart", "gpio", "usb"]
+tamago_soc = "github.com/usbarmory/tamago/soc/nxp/imx6ul"
+tamago_board = "hatch.local/imx6ul_board_a"
+tree = "tree"
+notes = "Development board variant A — UART1 console, GPIO, USB."
+
+[[pinmux]]
+signal = "UART1_TX"
+pad = "UART1_TX_DATA"
+fn = "ALT0"
+
+[[pinmux]]
+signal = "UART1_RX"
+pad = "UART1_RX_DATA"
+fn = "ALT0"
+
+[[pinmux]]
+signal = "GPIO1_IO01"
+pad = "GPIO1_IO01"
+fn = "ALT5"
+
+[[pinmux]]
+signal = "GPIO1_IO02"
+pad = "GPIO1_IO02"
+fn = "ALT5"

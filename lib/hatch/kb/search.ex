@@ -102,7 +102,7 @@ defmodule Hatch.KB.Search do
     soc_exact = if soc_query, do: board.soc_key == normalize_soc(soc_query), else: false
 
     soc_family =
-      if soc_query and not soc_exact,
+      if soc_query && not soc_exact,
         do: soc_family_match?(board.soc_key, normalize_soc(soc_query)),
         else: false
 
@@ -138,7 +138,7 @@ defmodule Hatch.KB.Search do
 
     # UART match
     {points, why} =
-      if Board.known?(board.uart) and query[:uart] do
+      if Board.known?(board.uart) && query[:uart] do
         if String.downcase(board.uart) == String.downcase(query[:uart]) do
           {[3.0 | points], ["uart #{board.uart}" | why]}
         else
@@ -224,7 +224,7 @@ defmodule Hatch.KB.Search do
 
     # goarch match
     {points, why} =
-      if Board.known?(board.goarch) and query[:goarch] do
+      if Board.known?(board.goarch) && query[:goarch] do
         if board.goarch == query[:goarch] do
           {[1.0 | points], ["goarch #{board.goarch}" | why]}
         else
@@ -236,7 +236,7 @@ defmodule Hatch.KB.Search do
 
     # goarm match
     {points, why} =
-      if Board.known?(board.goarm) and query[:goarm] do
+      if Board.known?(board.goarm) && query[:goarm] do
         if board.goarm == query[:goarm] do
           {[0.5 | points], ["goarm #{board.goarm}" | why]}
         else
@@ -256,7 +256,7 @@ defmodule Hatch.KB.Search do
 
     # ram_size match
     {points, why} =
-      if Board.known?(board.ram_size) and query[:ram_size] do
+      if Board.known?(board.ram_size) && query[:ram_size] do
         if board.ram_size == query[:ram_size] do
           {[1.0 | points], ["ram_size 0x#{Integer.to_string(board.ram_size, 16)}" | why]}
         else

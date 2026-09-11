@@ -1,0 +1,32 @@
+id = "imx6ul_board_b"
+soc = "imx6ul"
+goarch = "arm"
+goarm = "7"
+ram_start = "0x80000000"
+ram_size = "0x20000000"
+uart = "UART2"
+peripherals = ["uart", "spi", "eth"]
+tamago_soc = "github.com/usbarmory/tamago/soc/nxp/imx6ul"
+tamago_board = "hatch.local/imx6ul_board_b"
+tree = "tree"
+notes = "Production variant B — UART2 console, SPI, ethernet PHY."
+
+[[pinmux]]
+signal = "UART2_TX"
+pad = "UART2_TX_DATA"
+fn = "ALT0"
+
+[[pinmux]]
+signal = "UART2_RX"
+pad = "UART2_RX_DATA"
+fn = "ALT0"
+
+[[pinmux]]
+signal = "SPI1_CLK"
+pad = "ECSPI1_SCLK"
+fn = "ALT0"
+
+[[pinmux]]
+signal = "ENET_MDC"
+pad = "GPIO1_IO16"
+fn = "ALT0"

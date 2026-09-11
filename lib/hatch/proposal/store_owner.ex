@@ -10,7 +10,16 @@ defmodule Hatch.Proposal.StoreOwner do
 
   @spec start_link(keyword()) :: {:ok, pid()} | {:error, term()}
   def start_link(opts) do
-    GenServer.start_link(__MODULE__, opts)
+    session_id = Keyword.get(opts, :session_id)
+
+    name_opts =
+      if is_binary(session_id) do
+        [name: {:via, Registry, {Hatch.Registry, {:proposal_store, session_id}}}]
+      else
+        []
+      end
+
+    GenServer.start_link(__MODULE__, opts, name_opts)
   end
 
   @spec get_table(pid()) :: :ets.tid()

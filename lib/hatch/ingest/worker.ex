@@ -63,6 +63,7 @@ defmodule Hatch.Ingest.Worker do
     - ram_size: RAM size (e.g., "512MB", "0x20000000")
     - uart: UART name (e.g., "UART2", "USART1")
     - peripherals: List of peripheral names (e.g., ["gpio", "usb"])
+    - pinmux: List of {signal, pad, fn} objects (only if the document names them)
     - tamago_soc: TamaGo SoC name
     - tamago_board: TamaGo board name
     - notes: Any relevant notes
