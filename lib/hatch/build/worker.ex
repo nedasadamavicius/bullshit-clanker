@@ -81,7 +81,7 @@ defmodule Hatch.Build.Worker do
             err
 
           {:ok, go_bin} ->
-            run_build(session_id, go_bin, config, package, timeout_ms)
+            run_build(session_id, go_bin, config, package, timeout_ms, opts)
         end
     end
   end
@@ -116,9 +116,11 @@ defmodule Hatch.Build.Worker do
     end
   end
 
-  defp run_build(session_id, go_bin, config, package, timeout_ms) do
+  defp run_build(session_id, go_bin, config, package, timeout_ms, opts) do
     build_id = ("b_" <> :crypto.strong_rand_bytes(4)) |> Base.encode16(case: :lower)
     start_time = System.monotonic_time(:millisecond)
+    goarch = arch_opt(opts, :goarch, "arm")
+    goarm = arch_opt(opts, :goarm, "7")
 
     argv = [go_bin, "build", package]
 
@@ -128,7 +130,7 @@ defmodule Hatch.Build.Worker do
         argv: argv
       })
 
-      case spawn_port(go_bin, package, config) do
+      case spawn_port(go_bin, package, config, goarch, goarm) do
         {:ok, port} ->
           result = wait_for_build(session_id, port, timeout_ms, build_id, [])
           port_close(port)
@@ -161,7 +163,14 @@ defmodule Hatch.Build.Worker do
     end
   end
 
-  defp spawn_port(go_bin, package, config) do
+  defp arch_opt(opts, key, default) do
+    case Keyword.get(opts, key, default) do
+      val when is_binary(val) and val != "" -> val
+      _ -> default
+    end
+  end
+
+  defp spawn_port(go_bin, package, config, goarch, goarm) do
     tree_root = config.tree_root || ""
 
     args = ["build", package]
@@ -175,8 +184,8 @@ defmodule Hatch.Build.Worker do
         e ++
           [
             {~c"GOOS", ~c"tamago"},
-            {~c"GOARCH", ~c"arm"},
-            {~c"GOARM", ~c"7"},
+            {~c"GOARCH", String.to_charlist(goarch)},
+            {~c"GOARM", String.to_charlist(goarm)},
             {~c"CGO_ENABLED", ~c"0"}
           ]
       end)

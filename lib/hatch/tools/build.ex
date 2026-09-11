@@ -14,7 +14,12 @@ defmodule Hatch.Tools.Build do
 
       timeout_ms = Hatch.Config.get().build_timeout_ms
 
-      case builder.build(ctx.session_id, package: package, timeout_ms: timeout_ms) do
+      case builder.build(ctx.session_id,
+             package: package,
+             timeout_ms: timeout_ms,
+             goarch: arch_from_ctx(ctx, :goarch, "arm"),
+             goarm: arch_from_ctx(ctx, :goarm, "7")
+           ) do
         {:ok, result} ->
           output = %{
             "exit_status" => result.exit_status,
@@ -34,6 +39,13 @@ defmodule Hatch.Tools.Build do
   end
 
   # --- Helpers ---
+
+  defp arch_from_ctx(ctx, field, default) do
+    case ctx[:draft] do
+      %{^field => val} when is_binary(val) -> val
+      _ -> default
+    end
+  end
 
   defp validate_package(package) do
     cond do

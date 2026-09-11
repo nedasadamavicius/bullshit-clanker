@@ -42,8 +42,8 @@ defmodule Hatch.Tools.Propose do
              board
            ),
          :ok <- Citations.check(proposal, ctx_for_citations),
-         :ok <- Store.put(ctx.proposal_store, proposal),
          :ok <- supersede_previous(ctx, proposal),
+         :ok <- Store.put(ctx.proposal_store, proposal),
          :ok <- broadcast_proposal(ctx, proposal) do
       {:ok,
        "proposal #{proposal.id} recorded and shown to the operator. It is NOT applied. Wait for the operator's decision; do not repeat the patch."}
@@ -147,15 +147,13 @@ defmodule Hatch.Tools.Propose do
           [map()],
           Hatch.KB.Board.t()
         ) :: {Proposal.t(), Citations.ctx()}
-  defp build_proposal(ctx, nearest_board_id, summary, patch, _deltas, citations, _board) do
-    # Convert raw citation maps to proper format
+  defp build_proposal(ctx, nearest_board_id, summary, patch, raw_deltas, citations, board) do
     citations_list =
       Enum.map(citations, fn c ->
         %{path: Map.get(c, "path"), claim: Map.get(c, "claim")}
       end)
 
-    # For now, deltas are empty (would need draft board comparison)
-    deltas_list = []
+    deltas_list = build_deltas(ctx[:draft], board, raw_deltas)
 
     proposal =
       Proposal.new(
@@ -177,14 +175,52 @@ defmodule Hatch.Tools.Propose do
     {proposal, citations_ctx}
   end
 
-  @spec supersede_previous(map(), Proposal.t()) :: :ok
-  defp supersede_previous(ctx, _new_proposal) do
-    with {:ok, old_proposal} <- Store.pending(ctx.proposal_store, ctx.session_id) do
-      Store.set_status(ctx.proposal_store, ctx.session_id, old_proposal.id, :rejected, [
-        "superseded"
-      ])
+  defp build_deltas(%Hatch.KB.Board{} = draft, %Hatch.KB.Board{} = board, _raw) do
+    Hatch.KB.Delta.compare(draft, board)
+  end
 
-      broadcast_invalid(ctx, old_proposal.id, ["superseded"])
+  defp build_deltas(_draft, _board, raw_deltas) when is_list(raw_deltas) do
+    raw_deltas
+    |> Enum.map(&delta_from_model/1)
+    |> Enum.reject(&is_nil/1)
+  end
+
+  defp build_deltas(_draft, _board, _), do: []
+
+  defp delta_from_model(row) when is_map(row) do
+    field = Map.get(row, "field") || Map.get(row, :field)
+    from = Map.get(row, "from") || Map.get(row, :from)
+    to = Map.get(row, "to") || Map.get(row, :to)
+
+    cond do
+      is_binary(field) ->
+        %Hatch.KB.Delta{
+          field: String.to_atom(field),
+          draft: to,
+          board: from,
+          kind: :differs
+        }
+
+      is_atom(field) and not is_nil(field) ->
+        %Hatch.KB.Delta{field: field, draft: to, board: from, kind: :differs}
+
+      true ->
+        nil
+    end
+  end
+
+  defp delta_from_model(_), do: nil
+
+  @spec supersede_previous(map(), Proposal.t()) :: :ok
+  defp supersede_previous(ctx, new_proposal) do
+    with {:ok, old_proposal} <- Store.pending(ctx.proposal_store, ctx.session_id) do
+      if old_proposal.id != new_proposal.id do
+        Store.set_status(ctx.proposal_store, ctx.session_id, old_proposal.id, :rejected, [
+          "superseded"
+        ])
+
+        broadcast_invalid(ctx, old_proposal.id, ["superseded"])
+      end
     end
 
     :ok

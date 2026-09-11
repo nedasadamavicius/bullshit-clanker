@@ -1,0 +1,8 @@
+#!/bin/sh
+# Fake tamago-go for scripted acceptance (spec 010 / 013). No real toolchain.
+echo "hatch-fake-tamago-go"
+echo "GOOS=${GOOS}"
+echo "GOARCH=${GOARCH}"
+echo "GOARM=${GOARM}"
+echo "argv: $*"
+exit 0

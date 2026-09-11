@@ -1,0 +1,27 @@
+id = "imx6ul_held_out"
+soc = "imx6ul"
+goarch = "arm"
+goarm = "7"
+ram_start = "0x80000000"
+ram_size = "0x20000000"
+uart = "UART1"
+peripherals = ["uart", "gpio"]
+tamago_soc = "github.com/usbarmory/tamago/soc/nxp/imx6ul"
+tamago_board = "hatch.local/imx6ul_held_out"
+tree = "tree"
+notes = "Held-out same-SoC board. Present in the KB but excluded at query time."
+
+[[pinmux]]
+signal = "UART1_TX"
+pad = "UART1_TX_DATA"
+fn = "ALT0"
+
+[[pinmux]]
+signal = "UART1_RX"
+pad = "UART1_RX_DATA"
+fn = "ALT0"
+
+[[pinmux]]
+signal = "GPIO1_IO03"
+pad = "GPIO1_IO03"
+fn = "ALT5"

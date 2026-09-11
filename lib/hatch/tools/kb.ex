@@ -18,6 +18,8 @@ defmodule Hatch.Tools.KB do
 
     with :ok <- validate_search_args(soc, uart, peripherals, text, limit),
          {:ok, limit_val} <- Args.integer_range(%{"limit" => limit}, "limit", 1, 20, 5) do
+      exclude = search_exclude(args, ctx)
+
       query =
         %{}
         |> then(fn q -> if soc, do: Map.put(q, :soc, soc), else: q end)
@@ -26,6 +28,7 @@ defmodule Hatch.Tools.KB do
           if Enum.any?(peripherals), do: Map.put(q, :peripherals, peripherals), else: q
         end)
         |> then(fn q -> if text, do: Map.put(q, :text, text), else: q end)
+        |> then(fn q -> if Enum.any?(exclude), do: Map.put(q, :exclude, exclude), else: q end)
         |> Map.put(:limit, limit_val)
 
       case Hatch.KB.Search.search(query) do
@@ -66,6 +69,12 @@ defmodule Hatch.Tools.KB do
       {:error, msg} ->
         {:error, %{code: :invalid_args, message: msg}}
     end
+  end
+
+  defp search_exclude(args, _ctx) do
+    from_args = List.wrap(Map.get(args, "exclude") || [])
+    from_env = List.wrap(Application.get_env(:hatch, :search_exclude, []))
+    Enum.uniq(from_args ++ from_env)
   end
 
   # --- Helpers ---

@@ -258,7 +258,8 @@ defmodule Hatch.TUI.Model do
             %{state | confirm_state: :none}
 
           proposal ->
-            # Mint the permit
+            # The only TUI call site. mix hatch.accept is the other, excluded
+            # from the 009 grep test by filename (spec 013).
             patch_hash = Proposal.patch_hash(proposal)
             permit = Hatch.Permit.mint(proposal_id, state.session_id, patch_hash)
 
