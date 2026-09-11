@@ -52,6 +52,13 @@ defmodule Hatch.Proposal do
     }
   end
 
+  @spec patch_hash(t() | String.t()) :: String.t()
+  def patch_hash(%__MODULE__{patch: patch}), do: patch_hash(patch)
+
+  def patch_hash(patch_text) when is_binary(patch_text) do
+    :crypto.hash(:sha256, patch_text) |> Base.encode16(case: :lower)
+  end
+
   @spec generate_id() :: String.t()
   defp generate_id do
     "p_" <> (:crypto.strong_rand_bytes(4) |> Base.encode16(case: :lower))
