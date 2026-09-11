@@ -119,6 +119,21 @@ defmodule Hatch.Tools.Args do
     end
   end
 
+  @spec list(map(), atom(), [term()]) :: {:ok, [term()]} | {:error, String.t()}
+  def list(args, key, default) do
+    case Map.get(args, key, default) do
+      val when is_list(val) ->
+        {:ok, val}
+
+      val ->
+        if val == default do
+          {:ok, val}
+        else
+          {:error, "#{key} must be a list"}
+        end
+    end
+  end
+
   @spec at_least_one([{atom(), term()}]) :: :ok | {:error, String.t()}
   def at_least_one(checks) do
     if Enum.any?(checks, fn {_k, v} -> v != nil end) do

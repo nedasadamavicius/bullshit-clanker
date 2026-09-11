@@ -7,7 +7,13 @@ defmodule Hatch.Tools do
 
   alias Hatch.Config
 
-  @type ctx :: %{session_id: String.t(), read_log: pid() | :ets.tid()}
+  @type ctx :: %{
+          session_id: String.t(),
+          read_log: pid() | :ets.tid(),
+          proposal_store: :ets.tid() | nil,
+          kb_root: Path.t() | nil,
+          tree_root: Path.t() | nil
+        }
 
   @spec schemas(Config.t()) :: [map()]
   def schemas(config) do
@@ -195,11 +201,55 @@ defmodule Hatch.Tools do
       "type" => "function",
       "function" => %{
         "name" => "propose_patch",
-        "description" => "Propose a patch to the knowledge base or working tree (008)",
+        "description" =>
+          "Propose a BSP patch for the new board. The human reviews and applies it; you cannot apply it yourself.",
         "parameters" => %{
           "type" => "object",
-          "properties" => %{},
-          "required" => []
+          "required" => ["nearest_board_id", "summary", "patch", "citations"],
+          "properties" => %{
+            "nearest_board_id" => %{
+              "type" => "string",
+              "description" => "id of the KB board this port is derived from"
+            },
+            "summary" => %{
+              "type" => "string",
+              "description" => "what changes and why, 1-5 sentences"
+            },
+            "deltas" => %{
+              "type" => "array",
+              "items" => %{
+                "type" => "object",
+                "required" => ["field", "from", "to"],
+                "properties" => %{
+                  "field" => %{"type" => "string"},
+                  "from" => %{"type" => "string"},
+                  "to" => %{"type" => "string"}
+                }
+              }
+            },
+            "patch" => %{
+              "type" => "string",
+              "description" =>
+                "unified diff against the working tree, paths relative to the tree root"
+            },
+            "citations" => %{
+              "type" => "array",
+              "items" => %{
+                "type" => "object",
+                "required" => ["path", "claim"],
+                "properties" => %{
+                  "path" => %{
+                    "type" => "string",
+                    "description" => "KB path you read with kb.read"
+                  },
+                  "claim" => %{
+                    "type" => "string",
+                    "description" => "the specific address, pin, size or name this file supports"
+                  }
+                }
+              }
+            }
+          }
         }
       }
     }
