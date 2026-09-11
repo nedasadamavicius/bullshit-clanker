@@ -38,3 +38,30 @@ Elixir TUI. AI-assisted TamaGo bring-up. Closed-world KB. Human applies patches.
 - Small modules. One OTP responsibility per process.
 - Comments only for non-obvious constraints (sandbox paths, citation checks).
 - No extra features, extra docs, or extra config layers beyond `PRODUCT.md` v1.
+
+## MVP handoff (2026-09-11)
+
+v1 specs 001–013 and the PDF ingest/TUI usability fixes are in.
+
+**Run:** `mix bc --kb ./kb`. It compiles automatically. `mix compile` builds only.
+The escript currently cannot load SQLite's native library; use the Mix launcher.
+Terminal input has been checked on Linux (`stty` and `/proc` are used).
+
+**PDF ingest:** `mix bc.kb.ingest /path/to/file.pdf --kb ./kb` (a directory also works).
+Requires `pdftotext`. Writes structured records and reports unknown fields and conflicts.
+Existing boards require `--force` to overwrite. Missing facts must remain unknown.
+
+**Credentials:** copy `config/secrets.env.example` to gitignored `config/secrets.env`.
+Default provider is Claude via API. Do not commit keys. Subscription/Claude Code support
+was discussed but is not implemented; the current model backend remains HTTP.
+
+**Mix task modules must be `Mix.Tasks.Bc.*`**, not `Mix.Tasks.BC.*`.
+
+**Req 0.7:** `connect_options: [timeout: 10_000]` and `receive_timeout:`.
+Streaming `into:` receives `{:data, data}, {req, resp}`; SSE state lives in an Agent.
+The HTTP client maps dotted BC tool names to API-safe names in schemas and history,
+and restores internal names on returned tool calls.
+
+**Known limits:** live K1 ingest produced a thin record with unknown SoC/RAM/pinmux.
+Do not fill these from model memory. K1 has no same-SoC TamaGo package in the KB.
+Offline acceptance uses a fake model and toolchain; it is not proof of live bring-up.

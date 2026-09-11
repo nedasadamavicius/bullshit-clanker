@@ -72,6 +72,8 @@ defmodule BC.CLITest do
             end)
 
           assert output =~ "bc ready"
+          assert output =~ "> "
+          assert output =~ "insert |"
           assert output =~ "boards=1"
           assert output =~ kb_dir
         end)

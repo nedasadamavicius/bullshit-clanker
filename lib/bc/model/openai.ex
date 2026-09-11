@@ -2,6 +2,16 @@ defmodule BC.Model.OpenAI do
   @behaviour BC.Model
   require Logger
 
+  @tool_names %{
+    "kb.search" => "kb_search",
+    "kb.read" => "kb_read",
+    "ws.read" => "ws_read",
+    "ws.list" => "ws_list",
+    "ws.diff" => "ws_diff",
+    "tamago.build" => "tamago_build"
+  }
+  @internal_names Map.new(@tool_names, fn {internal, wire} -> {wire, internal} end)
+
   @impl true
   def chat(messages, opts, stream_callback) do
     config = BC.Config.get()
@@ -42,8 +52,8 @@ defmodule BC.Model.OpenAI do
       auth: {:bearer, config.api_key},
       headers: BC.Provider.headers(config),
       redirect: false,
-      connect_timeout: 10_000,
-      timeout: timeout_ms
+      connect_options: [timeout: 10_000],
+      receive_timeout: timeout_ms
     )
   end
 
@@ -58,7 +68,15 @@ defmodule BC.Model.OpenAI do
 
     body =
       if tools != [] do
-        Map.put(body, "tools", tools) |> Map.put("tool_choice", "auto")
+        encoded =
+          Enum.map(
+            tools,
+            &update_in(&1, ["function", "name"], fn name ->
+              Map.get(@tool_names, name, name)
+            end)
+          )
+
+        Map.put(body, "tools", encoded) |> Map.put("tool_choice", "auto")
       else
         body
       end
@@ -116,7 +134,7 @@ defmodule BC.Model.OpenAI do
       "id" => id,
       "type" => "function",
       "function" => %{
-        "name" => name,
+        "name" => Map.get(@tool_names, name, name),
         "arguments" => arguments
       }
     }
@@ -124,41 +142,19 @@ defmodule BC.Model.OpenAI do
 
   defp perform_request(config, body, timeout_ms, stream_callback) do
     req = build_request(config, timeout_ms)
-
-    state = %{
-      text: "",
-      tool_calls: [],
-      tool_call_buffer: %{},
-      finish_reason: nil,
-      usage: %{},
-      buffer: "",
-      error: nil
-    }
+    {:ok, agent} = Agent.start_link(fn -> empty_stream_state() end)
 
     try do
       case Req.post(req,
              url: "/chat/completions",
              json: body,
-             into: fn chunk, acc ->
-               handle_stream_chunk(chunk, acc, stream_callback)
-             end
+             into: &stream_into(&1, &2, agent, stream_callback)
            ) do
-        {:ok, state} ->
-          case state.error do
-            nil ->
-              final_state = emit_buffered_tool_calls(state, stream_callback)
+        {:ok, %Req.Response{status: status}} when status >= 400 ->
+          {:error, http_error(status, Agent.get(agent, & &1))}
 
-              {:ok,
-               %{
-                 text: final_state.text,
-                 tool_calls: Enum.reverse(final_state.tool_calls),
-                 finish_reason: final_state.finish_reason || "stop",
-                 usage: final_state.usage
-               }}
-
-            error ->
-              {:error, error}
-          end
+        {:ok, %Req.Response{}} ->
+          finish_stream(Agent.get(agent, & &1), stream_callback)
 
         {:error, %Req.TransportError{reason: :timeout}} ->
           {:error, %{code: :timeout, message: "Request timeout"}}
@@ -172,24 +168,60 @@ defmodule BC.Model.OpenAI do
     rescue
       e ->
         {:error, %{code: :upstream, message: Exception.message(e)}}
+    after
+      if Process.alive?(agent), do: Agent.stop(agent)
     end
   end
 
-  defp handle_stream_chunk({:status, status}, state, _callback)
-       when status >= 400 do
-    {:halt, %{state | error: %{code: map_status_error(status), message: "HTTP #{status}"}}}
+  defp empty_stream_state do
+    %{
+      text: "",
+      tool_calls: [],
+      tool_call_buffer: %{},
+      finish_reason: nil,
+      usage: %{},
+      buffer: "",
+      error: nil
+    }
   end
 
-  defp handle_stream_chunk({:headers, _headers}, state, _callback) do
-    {:cont, state}
+  defp stream_into({:data, data}, {req, resp}, agent, callback) do
+    status = resp.status || 0
+
+    Agent.update(agent, fn state ->
+      if status >= 400 do
+        %{
+          state
+          | buffer: state.buffer <> data,
+            error: %{code: map_status_error(status), message: "HTTP #{status}"}
+        }
+      else
+        {new_state, remaining} = process_sse_chunk(state.buffer <> data, state, callback)
+        %{new_state | buffer: remaining}
+      end
+    end)
+
+    {:cont, {req, resp}}
   end
 
-  defp handle_stream_chunk({:data, data}, state, callback) do
-    new_buffer = state.buffer <> data
+  defp finish_stream(%{error: error}, _callback) when not is_nil(error), do: {:error, error}
 
-    {new_state, remaining} = process_sse_chunk(new_buffer, state, callback)
+  defp finish_stream(state, callback) do
+    final_state = emit_buffered_tool_calls(state, callback)
 
-    {:cont, %{new_state | buffer: remaining}}
+    {:ok,
+     %{
+       text: final_state.text,
+       tool_calls: Enum.reverse(final_state.tool_calls),
+       finish_reason: final_state.finish_reason || "stop",
+       usage: final_state.usage
+     }}
+  end
+
+  defp http_error(status, state) do
+    raw = state.buffer |> String.trim() |> String.slice(0, 500)
+    message = if raw == "", do: "HTTP #{status}", else: "HTTP #{status}: #{raw}"
+    %{code: map_status_error(status), message: message}
   end
 
   defp map_status_error(status) do
@@ -328,7 +360,7 @@ defmodule BC.Model.OpenAI do
     |> Enum.reduce(state, fn {_index, call}, acc ->
       tool_call = %{
         id: call["id"],
-        name: call["name"],
+        name: Map.get(@internal_names, call["name"], call["name"]),
         arguments: call["arguments"]
       }
 

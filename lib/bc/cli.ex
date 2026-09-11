@@ -7,7 +7,7 @@ defmodule BC.CLI do
         do_halt(code)
 
       {:halt, code, :version} ->
-        version = Mix.Project.config()[:version]
+        version = Application.spec(:bc, :vsn)
         IO.puts(version)
         do_halt(code)
 
@@ -44,7 +44,8 @@ defmodule BC.CLI do
   end
 
   defp start_app do
-    :ok = Application.ensure_started(:bc)
+    {:ok, _} = Application.ensure_all_started(:bc)
+    :ok
   end
 
   defp do_halt(code) do
@@ -95,6 +96,7 @@ defmodule BC.CLI do
     kb_root
     |> Path.join("boards/*/board.toml")
     |> Path.wildcard()
+    |> Enum.reject(&(Path.basename(Path.dirname(&1)) |> String.starts_with?("_")))
     |> length()
   end
 end

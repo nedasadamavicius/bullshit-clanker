@@ -190,7 +190,7 @@ defmodule BC.AcceptanceTest do
 
     output =
       capture_io(fn ->
-        assert {:halted, 0} == catch_throw(Mix.Tasks.BC.Accept.run(["--help"]))
+        assert {:halted, 0} == catch_throw(Mix.Tasks.Bc.Accept.run(["--help"]))
       end)
 
     assert output =~ "BC_API_KEY"
@@ -210,7 +210,7 @@ defmodule BC.AcceptanceTest do
 
     output =
       capture_io(:stderr, fn ->
-        assert {:halted, 1} == catch_throw(Mix.Tasks.BC.Accept.run([]))
+        assert {:halted, 1} == catch_throw(Mix.Tasks.Bc.Accept.run([]))
       end)
 
     assert output =~ "BC_API_KEY"

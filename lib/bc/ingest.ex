@@ -132,7 +132,7 @@ defmodule BC.Ingest do
       chunks
       |> Task.async_stream(&Worker.process_chunk/1,
         max_concurrency: 4,
-        timeout: 60_000,
+        timeout: 180_000,
         on_timeout: :kill_task
       )
       |> Enum.map(&handle_chunk_result/1)
@@ -192,13 +192,12 @@ defmodule BC.Ingest do
   end
 
   defp extract_overlap(text, max_chars) do
-    text_byte_size = byte_size(text)
+    len = String.length(text)
 
-    if text_byte_size <= max_chars do
+    if len <= max_chars do
       text
     else
-      offset = text_byte_size - max_chars
-      String.slice(text, offset..-1)
+      String.slice(text, len - max_chars, max_chars)
     end
   end
 

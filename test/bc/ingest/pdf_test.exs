@@ -34,6 +34,13 @@ defmodule BC.Ingest.PdfTest do
     assert text =~ "UART2"
   end
 
+  test "directory discovery includes uppercase PDF extensions", %{root: root} do
+    pdf = Path.join(root, "BOARD.PDF")
+    File.write!(pdf, "PDF")
+    File.write!(Path.join(root, "notes.txt"), "notes")
+    assert Pdf.list_pdfs(root) == [pdf]
+  end
+
   test "extract_text/1 errors on missing pdftotext-able empty file", %{root: root} do
     pdf = Path.join(root, "empty.pdf")
     MiniPdf.write!(pdf, [])
@@ -151,7 +158,7 @@ defmodule BC.Ingest.PdfTest do
   test "mix bc.kb.ingest --help does not require a key" do
     output =
       capture_io(fn ->
-        assert {:halted, 0} == catch_throw(Mix.Tasks.BC.Kb.Ingest.run(["--help"]))
+        assert {:halted, 0} == catch_throw(Mix.Tasks.Bc.Kb.Ingest.run(["--help"]))
       end)
 
     assert output =~ "BC_API_KEY"
@@ -169,7 +176,7 @@ defmodule BC.Ingest.PdfTest do
 
     output =
       capture_io(:stderr, fn ->
-        assert {:halted, 1} == catch_throw(Mix.Tasks.BC.Kb.Ingest.run(["--kb", "./kb"]))
+        assert {:halted, 1} == catch_throw(Mix.Tasks.Bc.Kb.Ingest.run(["--kb", "./kb"]))
       end)
 
     assert output =~ "BC_API_KEY"

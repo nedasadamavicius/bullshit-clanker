@@ -160,8 +160,10 @@ defmodule BC.TUI.Model do
   end
 
   defp handle_insert_key(state, key) when is_atom(key) do
-    # Arrow keys, special keys - ignore
-    state
+    case Atom.to_string(key) do
+      "char_" <> char -> %{state | input: state.input <> char}
+      _ -> state
+    end
   end
 
   defp handle_insert_key(state, char) when is_integer(char) do
@@ -622,7 +624,8 @@ defmodule BC.TUI.Model do
     build_display = build_state_display(state.build_state)
     pending = if state.pending_proposal, do: " [pending patch]", else: ""
 
-    "kb=#{state.config.kb_root} boards=#{state.board_count} tree=#{tree_display} model=#{state.config.model} [#{build_display}]#{pending}"
+    "kb=#{state.config.kb_root} boards=#{state.board_count} tree=#{tree_display} model=#{state.config.model} [#{build_display}]#{pending}\n" <>
+      "#{state.mode} | i: type | Esc: commands | q: quit | #{state.status_message || ""}"
   end
 
   defp build_state_display(:idle), do: "idle"

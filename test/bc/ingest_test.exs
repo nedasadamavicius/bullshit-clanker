@@ -11,6 +11,32 @@ defmodule BC.IngestTest do
   end
 
   describe "ingest/2" do
+    test "fenced JSON retains facts with verbatim evidence" do
+      Application.put_env(
+        :bc,
+        :fake_model,
+        Fake.script([
+          {:text, "```json\n{\"soc\":\"K1\",\"evidence_soc\":\"K1\"}\n```"}
+        ])
+      )
+
+      assert {:ok, board, []} = Ingest.ingest("The SoC is K1.", "k1")
+      assert board.soc == "K1"
+    end
+
+    test "empty evidence cannot support an invented fact" do
+      Application.put_env(
+        :bc,
+        :fake_model,
+        Fake.script([
+          {:text, ~s({"soc":"invented","evidence_soc":""})}
+        ])
+      )
+
+      assert {:ok, board, []} = Ingest.ingest("Unidentified board.", "board")
+      assert board.soc == :unknown
+    end
+
     test "board.toml draft input produces Board with zero model calls" do
       spec_text = """
       soc = "i.MX6UL"

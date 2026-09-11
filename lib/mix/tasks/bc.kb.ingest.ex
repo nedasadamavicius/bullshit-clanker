@@ -1,4 +1,4 @@
-defmodule Mix.Tasks.BC.Kb.Ingest do
+defmodule Mix.Tasks.Bc.Kb.Ingest do
   @moduledoc """
   Ingest schematic PDFs into the knowledge base.
 
@@ -40,7 +40,7 @@ defmodule Mix.Tasks.BC.Kb.Ingest do
 
   @impl true
   def run(args) do
-    {opts, rest, _} = OptionParser.parse(args, strict: @switches, aliases: [h: :help, f: :force])
+    {opts, rest} = OptionParser.parse!(args, strict: @switches, aliases: [h: :help, f: :force])
 
     if opts[:help] do
       Mix.shell().info(@moduledoc)
@@ -60,7 +60,7 @@ defmodule Mix.Tasks.BC.Kb.Ingest do
     end
 
     kb = opts[:kb] || "kb"
-    pdfs = List.wrap(opts[:pdf]) ++ rest
+    pdfs = Keyword.get_values(opts, :pdf) ++ rest
 
     cond do
       pdfs == [] ->
@@ -82,6 +82,7 @@ defmodule Mix.Tasks.BC.Kb.Ingest do
       {:ok, results} ->
         Enum.each(results, &print_result/1)
         Mix.shell().info("#{length(results)} board(s) written under #{kb_root}/boards")
+        Mix.shell().info("Start chatting: mix bc --kb #{inspect(kb_root)}")
         halt(0)
 
       {:error, err} ->
@@ -94,6 +95,16 @@ defmodule Mix.Tasks.BC.Kb.Ingest do
   defp print_result(result) do
     soc = (BC.KB.Board.known?(result.board.soc) && result.board.soc) || "unknown"
     Mix.shell().info("#{result.id}  soc=#{soc}  → #{result.dest}")
+
+    unknown =
+      [:soc, :goarch, :ram_start, :ram_size, :uart, :tamago_soc, :tamago_board]
+      |> Enum.reject(&BC.KB.Board.known?(Map.fetch!(result.board, &1)))
+
+    if unknown != [], do: Mix.shell().info("  unknown: #{Enum.join(unknown, ", ")}")
+
+    Enum.each(result.conflicts, fn conflict ->
+      Mix.shell().info("  conflict: #{conflict.field} — #{inspect(conflict.values)}")
+    end)
   end
 
   defp put_env_defaults do

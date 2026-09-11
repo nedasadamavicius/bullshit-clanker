@@ -1,4 +1,4 @@
-defmodule Mix.Tasks.BC.Accept do
+defmodule Mix.Tasks.Bc.Accept do
   @moduledoc """
   Live V1 acceptance run (not used in CI).
 

@@ -37,7 +37,7 @@ defmodule BC.Ingest.Worker do
 
     case model_client.chat(
            messages,
-           [model: ingest_model, temperature: 0.0, tools: []],
+           [model: ingest_model, temperature: 0.0, tools: [], timeout_ms: 180_000],
            fn _chunk -> :ok end
          ) do
       {:ok, result} ->
@@ -47,6 +47,10 @@ defmodule BC.Ingest.Worker do
         Logger.error("Ingest extraction failed: #{inspect(error)}")
         {:error, inspect(error)}
     end
+  rescue
+    e ->
+      Logger.error("Ingest chunk crashed: #{Exception.message(e)}")
+      {:error, Exception.message(e)}
   end
 
   defp extraction_prompt(chunk_text) do
@@ -102,12 +106,12 @@ defmodule BC.Ingest.Worker do
       end
 
     case Jason.decode(json_text) do
-      {:ok, extracted} ->
+      {:ok, extracted} when is_map(extracted) ->
         # Validate evidence strings and build result
         validated = validate_evidence(extracted, chunk_text)
         {:ok, validated}
 
-      {:error, _} ->
+      _ ->
         Logger.debug("Failed to parse extraction JSON: #{json_text}")
         {:ok, %{}}
     end
@@ -135,7 +139,7 @@ defmodule BC.Ingest.Worker do
       case extracted[evidence_key] do
         evidence when is_binary(evidence) ->
           # Check if evidence is verbatim in chunk
-          if String.contains?(chunk_text, evidence) do
+          if String.trim(evidence) != "" and String.contains?(chunk_text, evidence) do
             Map.put(acc, field_name, %{value: field_value, evidence: evidence})
           else
             # Fabricated evidence, drop the field

@@ -61,9 +61,9 @@ defmodule BC.Ingest.Pdf do
 
       File.dir?(abs) ->
         abs
-        |> Path.join("**/*.pdf")
+        |> Path.join("**/*")
         |> Path.wildcard(match_dot: false)
-        |> Enum.filter(&File.regular?/1)
+        |> Enum.filter(&(File.regular?(&1) and pdf?(&1)))
         |> Enum.sort()
 
       true ->

@@ -37,6 +37,15 @@ defmodule BC.TUI.ModelTest do
   end
 
   describe "user input events" do
+    test "command letters remain typeable in insert mode", %{model: model} do
+      result =
+        Enum.reduce([:char_q, :char_i, :char_a, :char_b], model, fn key, state ->
+          Model.update(state, {:key, key})
+        end)
+
+      assert result.input == "qiab"
+    end
+
     test "user_message event appends to transcript", %{model: model} do
       event = {:bc_event, %{type: :user_message, text: "hello", session_id: "s_test123"}}
       new_model = Model.update(model, event)

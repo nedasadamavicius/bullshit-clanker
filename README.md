@@ -10,6 +10,23 @@ Product intent: [PRODUCT.md](PRODUCT.md). Implementer constraints: [AGENTS.md](A
 
 ## Run it
 
+For your own PDFs and a conversation, run from the repo root:
+
+```bash
+mix deps.get
+# First time only: copy config/secrets.env.example to config/secrets.env
+# and add your API key there.
+mix bc.kb.ingest /path/to/datasheet.pdf --kb ./kb
+mix bc --kb ./kb
+```
+
+PDF ingest needs `pdftotext` (Poppler) installed. You can pass a directory
+instead of a single PDF. Review the reported unknown fields and conflicts;
+the chat uses the generated records. Type a question and press Enter;
+press Esc then q to quit. `mix bc` compiles changes automatically.
+Use `mix compile` if you only want to build. The escript archive currently cannot
+load SQLite’s native library; use `mix bc` to launch from this checkout.
+
 Need Elixir **1.17+**, Mix, `git` on `PATH`, and an Anthropic **console** API key ([console.anthropic.com/settings/keys](https://console.anthropic.com/settings/keys)). Claude.ai / Claude Code login is not an API key.
 
 ```bash
@@ -20,8 +37,7 @@ cp config/secrets.env.example config/secrets.env
 # edit config/secrets.env — paste:
 #   ANTHROPIC_API_KEY=sk-ant-...
 
-mix escript.build
-./bc --kb test/fixtures/acceptance/kb \
+mix bc --kb test/fixtures/acceptance/kb \
      --tree test/fixtures/acceptance/tree \
      --spec test/fixtures/acceptance/spec/held-out.md
 ```
@@ -132,8 +148,8 @@ mix bc.kb.lint --kb ./kb
 ## TUI
 
 ```bash
-./bc --kb ./kb
-./bc --kb ./kb --tree ./tamago-overlay --spec ./notes/new-board.md
+mix bc --kb ./kb
+mix bc --kb ./kb --tree ./tamago-overlay --spec ./notes/new-board.md
 ```
 
 | Flag | Required | What |

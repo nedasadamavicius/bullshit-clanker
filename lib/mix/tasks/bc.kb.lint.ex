@@ -1,4 +1,4 @@
-defmodule Mix.Tasks.BC.Kb.Lint do
+defmodule Mix.Tasks.Bc.Kb.Lint do
   @moduledoc """
   Lints the KB, checking board.toml files for parse errors and warnings.
 

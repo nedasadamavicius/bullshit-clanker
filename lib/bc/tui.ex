@@ -31,11 +31,16 @@ defmodule BC.TUI do
     Process.monitor(board_job_supervisor)
 
     # Spawn a task to read keyboard input from stdin
+    terminal = prepare_terminal()
     self_pid = self()
     _stdin_reader_pid = spawn_link(fn -> read_stdin_loop(self_pid) end)
 
     # Run the event loop
-    _final_state = run_event_loop(initial_model, board_job_supervisor)
+    try do
+      run_event_loop(initial_model, board_job_supervisor)
+    after
+      restore_terminal(terminal)
+    end
 
     # Clean up: terminate the supervisor
     terminate_supervisor(board_job_supervisor)
@@ -56,6 +61,8 @@ defmodule BC.TUI do
   end
 
   defp run_event_loop(model, board_job_supervisor) do
+    IO.write("\e[H\e[2J" <> Model.render(model) <> "\n")
+
     receive do
       {:bc_event, _event} = bc_event ->
         new_model = Model.update(model, bc_event)
@@ -81,9 +88,6 @@ defmodule BC.TUI do
         run_event_loop(new_model, board_job_supervisor)
 
       _ ->
-        run_event_loop(model, board_job_supervisor)
-    after
-      100 ->
         run_event_loop(model, board_job_supervisor)
     end
   end
@@ -133,6 +137,7 @@ defmodule BC.TUI do
       "\e" -> {:key, :esc}
       "\t" -> {:key, :tab}
       "\b" -> {:key, :backspace}
+      "\x7f" -> {:key, :backspace}
       "\x03" -> {:key, :"Ctrl+c"}
       "q" -> {:key, :char_q}
       "i" -> {:key, :char_i}
@@ -145,8 +150,28 @@ defmodule BC.TUI do
       "y" -> {:key, :char_y}
       # Note: PgUp/PgDn and arrow keys would need ANSI escape sequence parsing
       # which requires buffering multiple characters. For now, simple char handling.
-      c when byte_size(c) == 1 -> {:key, String.to_charlist(c) |> hd()}
+      c when is_binary(c) -> {:key, String.to_charlist(c) |> hd()}
       _ -> :skip
     end
+  end
+
+  defp prepare_terminal do
+    device = "/proc/#{System.pid()}/fd/0"
+
+    with stty when is_binary(stty) <- System.find_executable("stty"),
+         {saved, 0} <- System.cmd(stty, ["-F", device, "-g"], stderr_to_stdout: true),
+         {_, 0} <-
+           System.cmd(stty, ["-F", device, "-icanon", "-echo", "-isig"], stderr_to_stdout: true) do
+      {stty, device, String.trim(saved)}
+    else
+      _ -> nil
+    end
+  end
+
+  defp restore_terminal(nil), do: :ok
+
+  defp restore_terminal({stty, device, saved}) do
+    System.cmd(stty, ["-F", device, saved], stderr_to_stdout: true)
+    :ok
   end
 end
