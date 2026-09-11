@@ -255,7 +255,9 @@ defmodule Hatch.Session do
       tree_root: config.tree_root
     }
 
-    case model_client.chat(messages, [model: config.model, tools: Tools.schemas(config)],
+    case model_client.chat(
+           messages,
+           [model: config.model, tools: Tools.schemas(config)],
            fn chunk -> handle_model_chunk(chunk, session_id) end
          ) do
       {:ok, result} ->

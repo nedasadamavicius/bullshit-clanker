@@ -52,9 +52,13 @@ defmodule Hatch.SessionTest do
 
       # Check transcript
       transcript = Session.transcript(session_id)
-      assert length(transcript) >= 3  # system, user, assistant
+      # system, user, assistant
+      assert length(transcript) >= 3
       assert Enum.any?(transcript, fn m -> m.role == :user && m.content == "Hi there" end)
-      assert Enum.any?(transcript, fn m -> m.role == :assistant && m.content == "Hello, world!" end)
+
+      assert Enum.any?(transcript, fn m ->
+               m.role == :assistant && m.content == "Hello, world!"
+             end)
     end
   end
 
@@ -104,12 +108,15 @@ defmodule Hatch.SessionTest do
       assert is_list(transcript)
     end
 
-    test "leaves transcript well-formed with matching tool messages when not mid-turn", %{config: config} do
+    test "leaves transcript well-formed with matching tool messages when not mid-turn", %{
+      config: config
+    } do
       # Set up fake model with tool calls
       turn_1 = [
         {:tool_call, "kb.search", %{"soc" => "imx6ul"}},
         {:tool_call, "kb.read", %{"path" => "boards/test/board.toml"}}
       ]
+
       turn_2 = [{:text, "Done"}]
       fake_config = Fake.script_many([turn_1, turn_2])
       Application.put_env(:hatch, :fake_model, fake_config)
@@ -133,6 +140,7 @@ defmodule Hatch.SessionTest do
 
       Enum.each(assistant_indices, fn {assistant_idx, tool_calls} ->
         tool_call_ids = Enum.map(tool_calls, & &1.id)
+
         tool_message_ids =
           transcript
           |> Enum.drop(assistant_idx + 1)
@@ -209,9 +217,11 @@ defmodule Hatch.SessionTest do
     test "stops at 12 steps with max_steps reason", %{config: config} do
       # Create a fake model that returns tool calls in every turn
       # We'll create 13 turns of tool calls to exceed the limit
-      turns = Enum.map(1..13, fn i ->
-        [{:tool_call, "kb.search", %{"soc" => "step_#{i}"}}]
-      end)
+      turns =
+        Enum.map(1..13, fn i ->
+          [{:tool_call, "kb.search", %{"soc" => "step_#{i}"}}]
+        end)
+
       fake_config = Fake.script_many(turns)
       Application.put_env(:hatch, :fake_model, fake_config)
 
@@ -226,9 +236,10 @@ defmodule Hatch.SessionTest do
 
       # Verify transcript has system note about step limit
       transcript = Session.transcript(session_id)
+
       assert Enum.any?(transcript, fn m ->
-        m.role == :system && String.contains?(m.content, "Step limit")
-      end)
+               m.role == :system && String.contains?(m.content, "Step limit")
+             end)
     end
   end
 
@@ -247,13 +258,17 @@ defmodule Hatch.SessionTest do
       :ok = Session.send_message(session_id_2, "Message 2")
 
       # Wait for events from session 1
-      assert_receive {:hatch_event, %{session_id: ^session_id_1, type: :user_message, text: "Message 1"}},
+      assert_receive {:hatch_event,
+                      %{session_id: ^session_id_1, type: :user_message, text: "Message 1"}},
                      1000
+
       assert_receive {:hatch_event, %{session_id: ^session_id_1, type: :turn_finished}}, 2000
 
       # Wait for events from session 2
-      assert_receive {:hatch_event, %{session_id: ^session_id_2, type: :user_message, text: "Message 2"}},
+      assert_receive {:hatch_event,
+                      %{session_id: ^session_id_2, type: :user_message, text: "Message 2"}},
                      1000
+
       assert_receive {:hatch_event, %{session_id: ^session_id_2, type: :turn_finished}}, 2000
 
       # Transcripts should be different

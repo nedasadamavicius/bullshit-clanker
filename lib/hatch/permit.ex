@@ -18,7 +18,8 @@ defmodule Hatch.Permit do
   @derive Jason.Encoder
   defstruct [:proposal_id, :session_id, :nonce, :patch_hash, :issued_at]
 
-  @permit_ttl_ms 5 * 60 * 1000  # 5 minutes
+  # 5 minutes
+  @permit_ttl_ms 5 * 60 * 1000
 
   @ets_table_name :hatch_permit_spent
 

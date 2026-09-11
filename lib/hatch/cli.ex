@@ -14,7 +14,7 @@ defmodule Hatch.CLI do
       {:ok, config} ->
         Hatch.Config.put(config)
         start_app()
-        {:ok, _session_id, _pid} = Hatch.BoardJob.Supervisor.start_session([])
+        {:ok, session_id, _pid} = Hatch.BoardJob.Supervisor.start_session([])
         board_count = count_boards(config.kb_root)
 
         tree_display =
@@ -23,6 +23,9 @@ defmodule Hatch.CLI do
         IO.puts(
           "hatch ready — kb=#{config.kb_root} boards=#{board_count} tree=#{tree_display} model=#{config.model}"
         )
+
+        # Start the TUI event loop
+        Hatch.TUI.run(session_id, config, board_count)
 
         do_halt(0)
 
