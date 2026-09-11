@@ -12,7 +12,7 @@ defmodule Hatch.Tools.Build do
          :ok <- validate_package(package) do
       builder = Application.get_env(:hatch, :builder, Hatch.Build.Worker)
 
-      timeout_ms = Application.get_env(:hatch, :config).build_timeout_ms
+      timeout_ms = Hatch.Config.get().build_timeout_ms
 
       case builder.build(ctx.session_id, package: package, timeout_ms: timeout_ms) do
         {:ok, result} ->

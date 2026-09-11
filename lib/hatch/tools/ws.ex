@@ -59,7 +59,7 @@ defmodule Hatch.Tools.WS do
   @spec diff(map(), Hatch.Tools.ctx()) ::
           {:ok, String.t()} | {:error, %{code: atom(), message: String.t()}}
   def diff(_args, _ctx) do
-    config = Application.get_env(:hatch, :config)
+    config = Hatch.Config.get()
 
     case config.tree_root do
       nil ->
@@ -116,43 +116,45 @@ defmodule Hatch.Tools.WS do
         try do
           port = Port.open({:spawn_executable, exe_path}, [:binary, :exit_status, args: args])
 
-          output =
-            receive do
-              {^port, {:data, data}} ->
-                data
-
-              {^port, {:exit_status, status}} ->
-                if status == 128 do
-                  # git returns 128 when not a repo
-                  :not_a_repo
-                else
-                  ""
-                end
-            after
-              timeout_ms ->
-                try do
-                  Port.close(port)
-                rescue
-                  _e -> :ok
-                end
-
-                {:error, %{code: :timeout, message: "git diff timed out after #{timeout_ms}ms"}}
-            end
+          output = collect_port_output(port, timeout_ms, "")
 
           case output do
-            :not_a_repo ->
+            {:exit_status, 0, data} ->
+              {:ok, data}
+
+            {:exit_status, 128, _data} ->
+              # git returns 128 when not a repo
               {:error, %{code: :not_a_repo, message: "Not a git repository"}}
+
+            {:exit_status, _status, data} ->
+              {:ok, data}
 
             {:error, _} = err ->
               err
-
-            data ->
-              {:ok, data}
           end
         rescue
           _e ->
             {:error, %{code: :tool_crashed, message: "Failed to spawn git"}}
         end
+    end
+  end
+
+  defp collect_port_output(port, timeout_ms, acc) do
+    receive do
+      {^port, {:data, data}} ->
+        collect_port_output(port, timeout_ms, acc <> data)
+
+      {^port, {:exit_status, status}} ->
+        {:exit_status, status, acc}
+    after
+      timeout_ms ->
+        try do
+          Port.close(port)
+        rescue
+          _e -> :ok
+        end
+
+        {:error, %{code: :timeout, message: "git diff timed out after #{timeout_ms}ms"}}
     end
   end
 

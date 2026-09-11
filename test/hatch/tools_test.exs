@@ -37,7 +37,7 @@ defmodule Hatch.ToolsTest do
     Application.put_env(:hatch, :kb_root, tmp_kb)
     Application.put_env(:hatch, :tree_root, tmp_tree)
 
-    Application.put_env(:hatch, :config, %Hatch.Config{
+    Hatch.Config.put(%Hatch.Config{
       kb_root: tmp_kb,
       tree_root: tmp_tree,
       model: "gpt-4",
@@ -64,7 +64,7 @@ defmodule Hatch.ToolsTest do
       File.rm_rf!(tmp_tree)
       :persistent_term.erase(:kb_root)
       :persistent_term.erase(:tree_root)
-      Application.delete_env(:hatch, :config)
+      # config lives in :persistent_term, no per-test cleanup needed
       Application.delete_env(:hatch, :kb_root)
       Application.delete_env(:hatch, :tree_root)
     end)
@@ -74,7 +74,7 @@ defmodule Hatch.ToolsTest do
 
   describe "schemas/1" do
     test "includes all required tools" do
-      config = Application.get_env(:hatch, :config)
+      config = Hatch.Config.get()
       schemas = Hatch.Tools.schemas(config)
       names = Enum.map(schemas, & &1["function"]["name"])
 
@@ -89,7 +89,7 @@ defmodule Hatch.ToolsTest do
     end
 
     test "excludes ws and tamago.build when tree_root is nil" do
-      config = Application.get_env(:hatch, :config)
+      config = Hatch.Config.get()
       config_no_tree = %{config | tree_root: nil}
 
       schemas = Hatch.Tools.schemas(config_no_tree)
@@ -197,7 +197,7 @@ defmodule Hatch.ToolsTest do
     test "returns :no_tree when tree_root is nil", %{ctx: ctx} do
       Application.put_env(:hatch, :tree_root, nil)
 
-      Application.put_env(:hatch, :config, %Hatch.Config{
+      Hatch.Config.put(%Hatch.Config{
         kb_root: "/kb",
         tree_root: nil,
         model: "gpt-4",
