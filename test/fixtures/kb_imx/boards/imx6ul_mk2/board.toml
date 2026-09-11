@@ -1,0 +1,7 @@
+id = "imx6ul_mk2"
+soc = "i.MX6UL"
+ram_start = "0x80000000"
+ram_size = "0x20000000"
+uart = "UART3"
+peripherals = ["uart", "gpio"]
+notes = "Second board with same SoC but different UART"

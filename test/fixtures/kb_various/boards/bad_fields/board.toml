@@ -1,0 +1,7 @@
+id = "bad_fields"
+soc = "imx6ul"
+ram_start = "eighty"
+goarch = "invalid_arch"
+goarm = "9"
+peripherals = "not_a_list"
+unknown_key = "should_warn"

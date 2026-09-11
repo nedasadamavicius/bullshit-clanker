@@ -1,0 +1,5 @@
+id = "imx8m_board"
+soc = "imx8m"
+uart = "UART3"
+peripherals = ["uart", "gpio", "eth"]
+notes = "Completely different SoC"

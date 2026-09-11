@@ -6,11 +6,11 @@ New board spec in. Nearest known TamaGo `soc/` + `board/` trees out of the KB. M
 
 This is not OpenCode. The agent cannot see the web or the rest of your disk. If a pin is not in the KB, the answer is `unknown`.
 
-Read **[PRODUCT.md](PRODUCT.md)** before writing code. **[AGENTS.md](AGENTS.md)** is the constraint list for implementers.
+Read **[PRODUCT.md](PRODUCT.md)** before writing code. **[AGENTS.md](AGENTS.md)** is the constraint list for implementers. **[specs/](specs/)** is the v1 implementation plan, one spec per branch.
 
 ## Status
 
-Vision only. No Mix app yet.
+Vision plus specs ([specs/README.md](specs/README.md)). No Mix app yet.
 
 ## Shape (target)
 

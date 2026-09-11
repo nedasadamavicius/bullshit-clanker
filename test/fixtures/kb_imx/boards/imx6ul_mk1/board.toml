@@ -1,0 +1,12 @@
+id = "imx6ul_mk1"
+soc = "imx6ul"
+goarch = "arm"
+goarm = "7"
+ram_start = "0x80000000"
+ram_size = "0x20000000"
+uart = "UART2"
+peripherals = ["uart", "gpio", "usb", "eth"]
+tamago_soc = "github.com/usbarmory/tamago/soc/nxp/imx6ul"
+tamago_board = "github.com/usbarmory/tamago/board/usbarmory/mk1"
+tree = "tree/mk1"
+notes = "First generation board"

@@ -1,0 +1,5 @@
+id = "imx6ul_mk3"
+soc = "imx6ul"
+uart = "UART2"
+peripherals = ["uart", "gpio", "usb", "eth", "phy"]
+notes = "Third board with UART2 like mk1"

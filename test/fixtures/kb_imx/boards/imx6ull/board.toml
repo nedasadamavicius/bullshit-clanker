@@ -1,0 +1,5 @@
+id = "imx6ull_board"
+soc = "imx6ull"
+uart = "UART2"
+peripherals = ["uart", "gpio", "usb"]
+notes = "Different SoC but same family as imx6ul"
