@@ -30,7 +30,12 @@ defmodule Hatch.Session.TranscriptTest do
   describe "bound/2" do
     test "keeps messages when under budget" do
       messages = [
-        %{role: :system, content: "sys" <> String.duplicate("x", 1000), tool_calls: nil, tool_call_id: nil},
+        %{
+          role: :system,
+          content: "sys" <> String.duplicate("x", 1000),
+          tool_calls: nil,
+          tool_call_id: nil
+        },
         %{role: :user, content: "user", tool_calls: nil, tool_call_id: nil}
       ]
 
@@ -40,7 +45,8 @@ defmodule Hatch.Session.TranscriptTest do
 
     test "drops complete assistant+tool pairs when over budget" do
       # Create a large system prompt to exceed budget quickly
-      large_content = String.duplicate("x", 480_000)  # 120k tokens
+      # 120k tokens
+      large_content = String.duplicate("x", 480_000)
 
       messages = [
         %{role: :system, content: large_content, tool_calls: nil, tool_call_id: nil},
@@ -90,7 +96,11 @@ defmodule Hatch.Session.TranscriptTest do
       bounded = Transcript.bound(messages, nil)
 
       # Check if there's a system message with elision marker
-      system_msgs = Enum.filter(bounded, fn m -> m.role == :system && String.contains?(m.content, "elided") end)
+      system_msgs =
+        Enum.filter(bounded, fn m ->
+          m.role == :system && String.contains?(m.content, "elided")
+        end)
+
       # Elision marker might be added if bounding occurred
       # (depends on whether budget was exceeded)
     end

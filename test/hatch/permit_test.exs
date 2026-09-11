@@ -39,7 +39,7 @@ defmodule Hatch.PermitTest do
   test "consume fails after 5 minutes (expired)" do
     permit = Permit.mint("p_test", "sess_test", "hash_test")
     # 5 minutes + 1 second
-    now_ms = permit.issued_at + (5 * 60 * 1000) + 1000
+    now_ms = permit.issued_at + 5 * 60 * 1000 + 1000
 
     assert {:error, :expired} == Permit.consume(permit, now_ms)
   end
@@ -47,7 +47,7 @@ defmodule Hatch.PermitTest do
   test "consume succeeds just before 5 minute expiry" do
     permit = Permit.mint("p_test", "sess_test", "hash_test")
     # 5 minutes - 1 second
-    now_ms = permit.issued_at + (5 * 60 * 1000) - 1000
+    now_ms = permit.issued_at + 5 * 60 * 1000 - 1000
 
     assert :ok == Permit.consume(permit, now_ms)
   end

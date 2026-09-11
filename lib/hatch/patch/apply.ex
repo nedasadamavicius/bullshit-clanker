@@ -8,7 +8,8 @@ defmodule Hatch.Patch.Apply do
 
   require Logger
 
-  @timeout_ms 30 * 1000  # 30 seconds
+  # 30 seconds
+  @timeout_ms 30 * 1000
 
   @spec apply_patch(Hatch.Proposal.t(), Hatch.Permit.t(), String.t()) ::
           {:ok, %{output: String.t(), files: [String.t()]}} | {:error, map()}
@@ -69,8 +70,12 @@ defmodule Hatch.Patch.Apply do
       full_path = Path.join(tree_root, file.path)
 
       case Hatch.Sandbox.under?(:tree, full_path) do
-        true -> {:cont, :ok}
-        false -> {:halt, {:error, %{code: :outside_sandbox, message: "Patch targets file outside sandbox"}}}
+        true ->
+          {:cont, :ok}
+
+        false ->
+          {:halt,
+           {:error, %{code: :outside_sandbox, message: "Patch targets file outside sandbox"}}}
       end
     end)
   end
@@ -79,8 +84,11 @@ defmodule Hatch.Patch.Apply do
     tmpfile = Path.join(System.tmp_dir!(), "patch_#{:erlang.unique_integer([:positive])}")
 
     case File.write(tmpfile, patch_text) do
-      :ok -> {:ok, tmpfile}
-      {:error, reason} -> {:error, %{code: :io_error, message: "Failed to write temp file: #{inspect(reason)}"}}
+      :ok ->
+        {:ok, tmpfile}
+
+      {:error, reason} ->
+        {:error, %{code: :io_error, message: "Failed to write temp file: #{inspect(reason)}"}}
     end
   end
 
@@ -94,14 +102,15 @@ defmodule Hatch.Patch.Apply do
 
   defp run_git_apply_internal(tree_root, tmpfile, check_only) do
     git_path = System.find_executable("git") || "git"
-    args = ["apply", "--whitespace=nowarn"] ++ (check_only && ["--check"] || []) ++ [tmpfile]
+    args = ["apply", "--whitespace=nowarn"] ++ ((check_only && ["--check"]) || []) ++ [tmpfile]
 
-    port = Port.open({:spawn_executable, git_path}, [
-      {:args, ["-C", tree_root] ++ args},
-      :binary,
-      :use_stdio,
-      :exit_status
-    ])
+    port =
+      Port.open({:spawn_executable, git_path}, [
+        {:args, ["-C", tree_root] ++ args},
+        :binary,
+        :use_stdio,
+        :exit_status
+      ])
 
     receive_port_result(port, "", check_only, tmpfile)
   end
@@ -116,7 +125,12 @@ defmodule Hatch.Patch.Apply do
 
       {^port, {:exit_status, status}} ->
         stage = if check_only, do: "patch check", else: "patch apply"
-        {:error, %{code: :patch_conflict, message: "git #{stage} failed (status #{status}): #{acc_output}"}}
+
+        {:error,
+         %{
+           code: :patch_conflict,
+           message: "git #{stage} failed (status #{status}): #{acc_output}"
+         }}
     after
       timeout ->
         Port.close(port)

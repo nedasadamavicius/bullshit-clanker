@@ -10,7 +10,9 @@ defmodule Hatch.Patch.ApplyTest do
 
       _git_path ->
         # Create a temporary directory for the test repo
-        tmpdir = Path.join(System.tmp_dir!(), "hatch_apply_test_#{:erlang.unique_integer([:positive])}")
+        tmpdir =
+          Path.join(System.tmp_dir!(), "hatch_apply_test_#{:erlang.unique_integer([:positive])}")
+
         File.mkdir_p!(tmpdir)
 
         # Configure sandbox with test tree_root
@@ -41,14 +43,18 @@ defmodule Hatch.Patch.ApplyTest do
   end
 
   defp tree_hash(path) do
-    {output, 0} = System.cmd("find", [path, "-type", "f", "-not", "-path", "*/.git/*"],
-      stderr_to_stdout: true)
+    {output, 0} =
+      System.cmd("find", [path, "-type", "f", "-not", "-path", "*/.git/*"],
+        stderr_to_stdout: true
+      )
+
     files = String.split(output, "\n", trim: true) |> Enum.sort()
 
-    content = Enum.map_join(files, "\n", fn file ->
-      {:ok, data} = File.read(file)
-      data
-    end)
+    content =
+      Enum.map_join(files, "\n", fn file ->
+        {:ok, data} = File.read(file)
+        data
+      end)
 
     :crypto.hash(:sha256, content) |> Base.encode16(case: :lower)
   end
@@ -86,7 +92,7 @@ defmodule Hatch.Patch.ApplyTest do
     permit = Permit.mint(proposal.id, "sess_1", Proposal.patch_hash(proposal))
 
     # Simulate old issue time
-    old_permit = %{permit | issued_at: System.monotonic_time(:millisecond) - (6 * 60 * 1000)}
+    old_permit = %{permit | issued_at: System.monotonic_time(:millisecond) - 6 * 60 * 1000}
 
     hash_before = tree_hash(tree_root)
 
@@ -203,7 +209,7 @@ defmodule Hatch.Patch.ApplyTest do
   # Helper function to create a simple test proposal
   defp create_test_proposal(session_id, summary) do
     %Proposal{
-      id: "p_test_#{:rand.uniform(100000)}",
+      id: "p_test_#{:rand.uniform(100_000)}",
       session_id: session_id,
       nearest_board_id: "board_test",
       summary: summary,

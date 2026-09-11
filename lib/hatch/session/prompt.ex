@@ -72,7 +72,7 @@ defmodule Hatch.Session.Prompt do
     board_lines =
       all_boards
       |> Enum.map(fn board ->
-        soc = Board.known?(board.soc) && board.soc || "unknown"
+        soc = (Board.known?(board.soc) && board.soc) || "unknown"
         "- #{board.id}: #{soc}"
       end)
       |> Enum.join("\n")
