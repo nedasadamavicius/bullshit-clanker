@@ -13,8 +13,8 @@ was actually read.
 
 ## Scope
 
-In: `Hatch.Proposal` (struct + per-session store), `Hatch.Tools.Propose`,
-`Hatch.Proposal.Citations`, `Hatch.Proposal.Patch` (validation only).
+In: `BC.Proposal` (struct + per-session store), `BC.Tools.Propose`,
+`BC.Proposal.Citations`, `BC.Proposal.Patch` (validation only).
 
 Out: applying anything (009), rendering (011).
 
@@ -55,7 +55,7 @@ pending supersedes it: the old one becomes `:rejected` with reason `"superseded"
 TUI is told. Rationale: two pending patches means two apply keybinds and an operator who
 applies the wrong one.
 
-### Patch validation (`Hatch.Proposal.Patch`)
+### Patch validation (`BC.Proposal.Patch`)
 
 Pure parsing — this module does **not** apply anything.
 
@@ -73,7 +73,7 @@ Pure parsing — this module does **not** apply anything.
 - Normalise line endings to `\n` and ensure a trailing newline, or `git apply` will
   reject the patch for reasons that have nothing to do with its content.
 
-### Citation check (`Hatch.Proposal.Citations`)
+### Citation check (`BC.Proposal.Citations`)
 
 ```elixir
 @spec check(Proposal.t(), ctx()) :: :ok | {:error, err()}
@@ -83,7 +83,7 @@ Rules, all mechanical — this is a **cheap** check by design (`AGENTS.md`: "cit
 required in the system prompt and checked cheaply (paths must be under KB)"):
 
 1. `citations` is non-empty.
-2. Every `path` resolves under `kb_root` (`Hatch.Sandbox.resolve(:kb, _)`) and exists.
+2. Every `path` resolves under `kb_root` (`BC.Sandbox.resolve(:kb, _)`) and exists.
 3. Every `path` was returned by a successful `kb.read` **in this session** (read-log,
    007). A path the model merely saw in a `kb.search` result is not enough — it must have
    read the file.
@@ -105,7 +105,7 @@ The error message tells the model exactly how to recover:
 
 ### Store
 
-`Hatch.Proposal.Store` — ETS table owned by the session's supervisor (survives a session
+`BC.Proposal.Store` — ETS table owned by the session's supervisor (survives a session
 crash so a pending patch is not lost):
 
 ```elixir
@@ -145,11 +145,11 @@ cannot apply patches.
 
 ## Test plan
 
-`test/hatch/proposal/citations_test.exs` with a table of patch/citation combinations
+`test/bc/proposal/citations_test.exs` with a table of patch/citation combinations
 including the `PRODUCT.md` failure case verbatim (`0x400A8000` invented).
-`test/hatch/proposal/patch_test.exs` with real `git diff` output fixtures under
+`test/bc/proposal/patch_test.exs` with real `git diff` output fixtures under
 `test/fixtures/patches/`.
-`test/hatch/tools/propose_test.exs` driving the tool through `Hatch.Tools.call/3`.
+`test/bc/tools/propose_test.exs` driving the tool through `BC.Tools.call/3`.
 
 ## Constraints
 

@@ -1,6 +1,6 @@
-# Implementing Hatch
+# Implementing BC
 
-You are building Hatch. Read `PRODUCT.md` first. If a change fights that document, the document wins unless a human updates it.
+You are building BC. Read `PRODUCT.md` first. If a change fights that document, the document wins unless a human updates it.
 
 ## What this is
 

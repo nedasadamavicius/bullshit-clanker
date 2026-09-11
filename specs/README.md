@@ -1,4 +1,4 @@
-# Hatch specs
+# BC specs
 
 End-to-end implementation specs for the product described in [`PRODUCT.md`](../PRODUCT.md),
 under the constraints in [`AGENTS.md`](../AGENTS.md). If a spec fights `PRODUCT.md`,

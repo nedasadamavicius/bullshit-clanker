@@ -7,13 +7,13 @@ Read [`000-overview.md`](000-overview.md) first.
 ## Goal
 
 Mechanise `PRODUCT.md` "V1 acceptance" so it can be re-run, and so that the project has a
-single command that answers "is Hatch done?". `AGENTS.md`: "Stop expanding until that
+single command that answers "is BC done?". `AGENTS.md`: "Stop expanding until that
 passes."
 
 ## Scope
 
 In: the fixture KB with a held-out board, the fixture working tree, the scripted and
-(optionally) live end-to-end runs, `mix hatch.accept`.
+(optionally) live end-to-end runs, `mix bc.accept`.
 
 Out: new product behaviour. If this spec needs a feature, that is a bug in 001–012.
 
@@ -43,32 +43,32 @@ compiler can run on it and that a wrong pinmux is a visible mistake.
 
 ### Run A — scripted (always, in CI)
 
-`mix test --only acceptance`. Uses `Hatch.Model.Fake` with a recorded script that a real
+`mix test --only acceptance`. Uses `BC.Model.Fake` with a recorded script that a real
 model produced once (checked in under `test/fixtures/acceptance/script.exs`, with a note
 on which model and date). Asserts the **mechanism**, not the model:
 
-1. `Hatch.CLI.main(["--kb", fixture_kb])` with no `--tree` → starts; with no `--kb` →
+1. `BC.CLI.main(["--kb", fixture_kb])` with no `--tree` → starts; with no `--kb` →
    exit 2. (V1 acceptance 1.)
 2. `--spec spec/held-out.md` ingests to a draft whose absent facts are `:unknown`.
    (V1 acceptance 2.)
 3. The session's tool list contains only the closed set; a scripted attempt to call
    `web_fetch` and to `kb.read` an absolute path both fail. (V1 acceptance 3.)
 4. The scripted turn names the nearest board — asserted against the id that
-   `Hatch.KB.Search.from_board/2` independently ranks first, not against a hardcoded
+   `BC.KB.Search.from_board/2` independently ranks first, not against a hardcoded
    string — and the `:proposal` event carries a non-empty delta table and citations that
    pass the 008 check. (V1 acceptance 4, 5.)
 5. A minted permit applies the patch; the fixture tree changes exactly as expected.
    (V1 acceptance 6.)
-6. `tamago.build` runs. In CI, `HATCH_TAMAGO_GO` points at the fake toolchain from 010
+6. `tamago.build` runs. In CI, `BC_TAMAGO_GO` points at the fake toolchain from 010
    and must be invoked with `GOOS=tamago` and the draft's `GOARCH`/`GOARM`; the assertion
    is on the invocation and the exit-status plumbing.
 
-### Run B — live (`mix hatch.accept`)
+### Run B — live (`mix bc.accept`)
 
 The real thing, run by a human with a real model and a real `tamago-go`. Not in CI.
 
 ```
-mix hatch.accept --kb test/fixtures/acceptance/kb --spec ... --tree <scratch copy>
+mix bc.accept --kb test/fixtures/acceptance/kb --spec ... --tree <scratch copy>
 ```
 
 - Copies the fixture tree to a scratch dir so the repo's fixture is never mutated.
@@ -99,8 +99,8 @@ of a vibe.
    mutating the script to invent an address and asserting the suite goes red.
    **(the test of the test)**
 4. The fixture tree is identical before and after `mix test` (the scratch-copy rule).
-5. `mix hatch.accept --help` documents the env it needs and refuses to run with a missing
-   `HATCH_API_KEY` rather than half-running.
+5. `mix bc.accept --help` documents the env it needs and refuses to run with a missing
+   `BC_API_KEY` rather than half-running.
 6. The live task's exit code is 0 only when all four conditions hold; a build exit 2
    produces exit 1 with the compiler log in the report.
 7. `acceptance.json` is written in both modes and contains every field above.

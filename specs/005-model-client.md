@@ -12,8 +12,8 @@ vendor."
 
 ## Scope
 
-In: `Hatch.Model` behaviour, `Hatch.Model.OpenAI`, SSE parsing, tool-call assembly,
-retries, `Hatch.Model.Fake` for tests.
+In: `BC.Model` behaviour, `BC.Model.OpenAI`, SSE parsing, tool-call assembly,
+retries, `BC.Model.Fake` for tests.
 
 Out: prompts (006), tool semantics (007).
 
@@ -24,7 +24,7 @@ Add deps `{:req, "~> 0.5"}`, `{:jason, "~> 1.4"}`.
 ### Behaviour
 
 ```elixir
-defmodule Hatch.Model do
+defmodule BC.Model do
   @type message :: %{role: :system | :user | :assistant | :tool, content: String.t() | nil,
                      tool_calls: [tool_call()] | nil, tool_call_id: String.t() | nil}
   @type tool_call :: %{id: String.t(), name: String.t(), arguments: String.t()}  # raw JSON string
@@ -44,7 +44,7 @@ The callback both streams (via the callback fun, for the TUI's live tokens) and 
 the assembled result (for the session's transcript). Callers that do not want streaming
 pass `&Function.identity/1`.
 
-### `Hatch.Model.OpenAI`
+### `BC.Model.OpenAI`
 
 - `POST #{api_base}/chat/completions`, `Authorization: Bearer #{api_key}`,
   `stream: true`, `stream_options: %{include_usage: true}`.
@@ -70,14 +70,14 @@ pass `&Function.identity/1`.
   exactly the hole I3 exists to close.
 - The API key never appears in a log, an error message, or an event. Assert it.
 
-### `Hatch.Model.Fake` (in `test/support/`)
+### `BC.Model.Fake` (in `test/support/`)
 
 Scripted client: configured with a list of canned responses (text and/or tool calls),
 returns them in order, records the messages and tools it was handed. Everything about the
 session and tool loop is tested against this, so no test hits a network.
 
 ```elixir
-Hatch.Model.Fake.script([
+BC.Model.Fake.script([
   {:tool_call, "kb.search", %{soc: "imx6ul"}},
   {:text, "nearest board is mk2 ..."}
 ])
@@ -103,7 +103,7 @@ Hatch.Model.Fake.script([
 
 ## Test plan
 
-`test/hatch/model/openai_test.exs` using `Req.Test` plugs for every case above — no live
+`test/bc/model/openai_test.exs` using `Req.Test` plugs for every case above — no live
 HTTP, no `:httpc`. SSE fixture bodies in `test/fixtures/sse/*.txt`.
 
 ## Constraints

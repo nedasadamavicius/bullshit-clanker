@@ -12,7 +12,7 @@ the module that makes that true.
 
 ## Scope
 
-In: `Hatch.Sandbox` — resolution, confinement, file reads with size/type guards, listing.
+In: `BC.Sandbox` — resolution, confinement, file reads with size/type guards, listing.
 
 Out: the tools themselves (007), the KB semantics (003), anything that writes (009).
 
@@ -29,7 +29,7 @@ Out: the tools themselves (007), the KB semantics (003), anything that writes (0
 @spec under?(root(), Path.t()) :: boolean()
 ```
 
-Roots come from `Hatch.Config.get/0`: `:kb` → `kb_root`, `:tree` → `tree_root`.
+Roots come from `BC.Config.get/0`: `:kb` → `kb_root`, `:tree` → `tree_root`.
 `:tree` when `tree_root` is `nil` → `{:error, %{code: :no_tree}}`.
 
 ### `resolve/2`
@@ -102,7 +102,7 @@ For root `kb` containing `boards/x/board.toml`:
 
 ## Test plan
 
-`test/hatch/sandbox_test.exs`. Build fixture trees under `System.tmp_dir!()` per test
+`test/bc/sandbox_test.exs`. Build fixture trees under `System.tmp_dir!()` per test
 (`on_exit` cleanup), including symlinks created with `File.ln_s/2`. Property-style loop
 over a table of hostile inputs. Skip symlink cases on platforms where `File.ln_s/2`
 returns `{:error, :enotsup}` rather than failing the suite.

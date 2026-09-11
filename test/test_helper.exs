@@ -1,12 +1,12 @@
-Application.put_env(:hatch, :model_client, Hatch.Model.Fake)
-Application.put_env(:hatch, :halt, fn code -> throw({:halted, code}) end)
-Application.put_env(:hatch, :patch_applier, Hatch.Test.FakePatchApplier)
+Application.put_env(:bc, :model_client, BC.Model.Fake)
+Application.put_env(:bc, :halt, fn code -> throw({:halted, code}) end)
+Application.put_env(:bc, :patch_applier, BC.Test.FakePatchApplier)
 
 ExUnit.start()
 
 # Test support modules
 
-defmodule Hatch.Test.FakePatchApplier do
+defmodule BC.Test.FakePatchApplier do
   def apply_patch(_proposal, _permit, _tree_root) do
     {:ok, %{output: "Applied patch", files: ["file.txt"]}}
   end

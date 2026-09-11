@@ -11,23 +11,23 @@ the working tree, reachable only with a permit that a human keypress mints.
 
 ## Scope
 
-In: `Hatch.Permit`, `Hatch.Patch.Apply`, the `Hatch.Proposal` status transitions and the
+In: `BC.Permit`, `BC.Patch.Apply`, the `BC.Proposal` status transitions and the
 `:apply_result` event.
 
 Out: the keybind itself (011), the patch parsing (008).
 
 ## Design
 
-### `Hatch.Permit`
+### `BC.Permit`
 
 ```elixir
-@opaque t :: %Hatch.Permit{proposal_id: String.t(), session_id: String.t(),
+@opaque t :: %BC.Permit{proposal_id: String.t(), session_id: String.t(),
                            nonce: binary(), issued_at: integer()}
 @spec mint(String.t(), String.t()) :: t()
 @spec consume(t()) :: :ok | {:error, :expired | :spent | :unknown}
 ```
 
-- Minted **only** by `Hatch.TUI` on an explicit accept keypress, and only for the
+- Minted **only** by `BC.TUI` on an explicit accept keypress, and only for the
   currently displayed pending proposal. There is exactly one call site in `lib/`, and a
   test asserts that by grepping.
 - Single use: `consume/1` records the nonce in an ETS set; a second consume →
@@ -38,7 +38,7 @@ Out: the keybind itself (011), the patch parsing (008).
   re-hashes the proposal's patch and refuses on mismatch (`:stale`). A superseded
   proposal therefore cannot be applied by a permit minted for the old one.
 
-### `Hatch.Patch.Apply`
+### `BC.Patch.Apply`
 
 Behaviour + implementation (overview §7 seam `:patch_applier`).
 
@@ -51,7 +51,7 @@ Sequence, aborting on the first failure and leaving the tree untouched:
 
 1. `Permit.consume/1`. No permit, spent, expired, stale, or wrong proposal →
    `{:error, %{code: :no_permit}}`. **This check is first, before any filesystem access.**
-2. Re-run `Hatch.Proposal.Patch.parse/1` and the sandbox check on every target path (do
+2. Re-run `BC.Proposal.Patch.parse/1` and the sandbox check on every target path (do
    not trust what was validated at propose time — the tree may have changed).
 3. Write the patch to a temp file under `System.tmp_dir!()`.
 4. Port: `git -C <tree_root> apply --check --whitespace=nowarn <tmpfile>` (argv,
@@ -60,7 +60,7 @@ Sequence, aborting on the first failure and leaving the tree untouched:
 5. Port: `git -C <tree_root> apply --whitespace=nowarn <tmpfile>`. Non-zero →
    `:patch_failed` (should be unreachable after `--check`; report loudly if reached).
 6. Delete the temp file. Return the touched file list from the parse.
-7. Caller (`Hatch.Session.note_applied/3`) sets the proposal `:applied`, broadcasts
+7. Caller (`BC.Session.note_applied/3`) sets the proposal `:applied`, broadcasts
    `:apply_result`, and appends to the transcript: `"The operator applied proposal <id>.
    Files: a.go, b.go. Use ws.diff to see the tree, tamago.build to check it."` — the
    model must learn the outcome from the system, not be told by the TUI's rendering.
@@ -91,19 +91,19 @@ codebase. The operator owns their VCS.
 8. After apply, the session transcript contains the applied-note naming the proposal and
    files; after reject, the rejected-note. **(so the model cannot claim it applied
    something, and cannot re-propose blindly)**
-9. Grep test: `Hatch.Permit.mint/2` has exactly one call site outside tests, in
-   `Hatch.TUI`. **(I4 — the permit lives with the human.)**
+9. Grep test: `BC.Permit.mint/2` has exactly one call site outside tests, in
+   `BC.TUI`. **(I4 — the permit lives with the human.)**
 10. Grep test: no `git` subcommand other than `apply` and `diff` appears in `lib/`, and no
     port anywhere is spawned through a shell. **(I8)**
 11. The model's tool list never contains an apply/write tool (re-asserted here against
-    `Hatch.Tools.schemas/1`).
+    `BC.Tools.schemas/1`).
 
 ## Test plan
 
-`test/hatch/patch/apply_test.exs` against a real fixture git repo created per test in a
+`test/bc/patch/apply_test.exs` against a real fixture git repo created per test in a
 tmp dir (`git init`, one commit), skipped with a clear message if `git` is unavailable.
 Hash the whole tree before/after for the "unchanged" assertions.
-`test/hatch/permit_test.exs` for mint/consume/expiry/staleness with an injected clock.
+`test/bc/permit_test.exs` for mint/consume/expiry/staleness with an injected clock.
 
 ## Constraints
 

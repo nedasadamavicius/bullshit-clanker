@@ -7,7 +7,7 @@ ram_size = "0x80000000"
 uart = "UART1"
 peripherals = ["uart", "gpio", "pcie", "usb3"]
 tamago_soc = "github.com/usbarmory/tamago/soc/nxp/imx8m"
-tamago_board = "hatch.local/imx8m_offsoc"
+tamago_board = "bc.local/imx8m_offsoc"
 tree = "tree"
 notes = "Different SoC. Must never appear in an imx6ul result."
 

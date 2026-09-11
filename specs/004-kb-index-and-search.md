@@ -12,8 +12,8 @@ This spec is the matcher, and the thing that makes matches explainable.
 
 ## Scope
 
-In: `Hatch.KB.Index` (GenServer owning sqlite + ETS), `Hatch.KB.Search` (ranking),
-`Hatch.KB.Delta` (field-by-field comparison).
+In: `BC.KB.Index` (GenServer owning sqlite + ETS), `BC.KB.Search` (ranking),
+`BC.KB.Delta` (field-by-field comparison).
 
 Out: the `kb.search` tool wrapper (007), embeddings (never).
 
@@ -21,9 +21,9 @@ Out: the `kb.search` tool wrapper (007), embeddings (never).
 
 Add dep `{:exqlite, "~> 0.23"}`.
 
-### `Hatch.KB.Index`
+### `BC.KB.Index`
 
-Started by `Hatch.Application` after config is available.
+Started by `BC.Application` after config is available.
 
 ```elixir
 @spec ensure_built() :: {:ok, %{boards: non_neg_integer(), rebuilt: boolean()}} | {:error, err()}
@@ -33,7 +33,7 @@ Started by `Hatch.Application` after config is available.
 @spec reload() :: {:ok, map()}
 ```
 
-- On start: `Hatch.KB.Loader.load_all/1`, write records into ETS table `:hatch_kb`
+- On start: `BC.KB.Loader.load_all/1`, write records into ETS table `:bc_kb`
   (`:named_table, :protected, read_concurrency: true`), keyed by board id. Reads go
   straight to ETS from the caller's process — the GenServer is the writer only.
 - Persist to `<kb_root>/index.sqlite`:
@@ -62,7 +62,7 @@ CREATE TABLE meta (k TEXT PRIMARY KEY, v TEXT);   -- schema_version, built_at
 - Load warnings from 003 are kept and exposed as `warnings/0` for the TUI to show once at
   startup.
 
-### `Hatch.KB.Search`
+### `BC.KB.Search`
 
 ```elixir
 @type query :: %{
@@ -115,7 +115,7 @@ the operator's audit trail for a match. A contribution that did not fire is neve
 `why` must also list what is **unknown on both sides** (e.g. `"pinmux unknown on both"`),
 because an unknown is the operator's cue to go read the schematic.
 
-### `Hatch.KB.Delta`
+### `BC.KB.Delta`
 
 ```elixir
 @spec compare(Board.t(), Board.t()) :: [Delta.t()]   # draft, kb board
@@ -157,9 +157,9 @@ Fixture KB: 3 boards on `imx6ul`, 1 on `imx6ull`, 1 on `imx8m`.
 
 ## Test plan
 
-`test/hatch/kb/search_test.exs` (ranking table, gating, determinism),
-`test/hatch/kb/index_test.exs` (rebuild detection, sqlite absence, read-only KB),
-`test/hatch/kb/delta_test.exs`. Fixtures under `test/fixtures/kb_imx/`.
+`test/bc/kb/search_test.exs` (ranking table, gating, determinism),
+`test/bc/kb/index_test.exs` (rebuild detection, sqlite absence, read-only KB),
+`test/bc/kb/delta_test.exs`. Fixtures under `test/fixtures/kb_imx/`.
 
 ## Constraints
 

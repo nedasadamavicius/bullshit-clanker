@@ -7,7 +7,7 @@ ram_size = "0x20000000"
 uart = "UART1"
 peripherals = ["uart", "gpio", "usb"]
 tamago_soc = "github.com/usbarmory/tamago/soc/nxp/imx6ul"
-tamago_board = "hatch.local/imx6ul_board_a"
+tamago_board = "bc.local/imx6ul_board_a"
 tree = "tree"
 notes = "Development board variant A — UART1 console, GPIO, USB."
 

@@ -1,68 +1,71 @@
-# Hatch
+# BC
 
 TUI for **AI-assisted TamaGo board bring-up**, closed against a spec knowledge base you own.
 
-You give it a new board spec and a KB of known boards. It names the nearest TamaGo tree, cites the files it actually read, and proposes a BSP patch. **You** apply it. The model cannot write, fetch the web, or leave `--kb` / `--tree`.
+You give it a new board spec and a KB of known boards. It names the nearest TamaGo tree, cites the files it actually read, and proposes a BSP patch. **You** apply it. The model cannot write, fetch the web, or leave `--kb` / `--tree`. If a pin is not in the KB, the answer is `unknown`.
 
-If a pin is not in the KB, the answer is `unknown`.
-
-v1 is implemented. Product intent: [PRODUCT.md](PRODUCT.md). Implementer constraints: [AGENTS.md](AGENTS.md). Specs: [specs/](specs/).
+Product intent: [PRODUCT.md](PRODUCT.md). Implementer constraints: [AGENTS.md](AGENTS.md). Specs: [specs/](specs/).
 
 ---
 
-## What you need
+## Run it
 
-- Elixir **1.17+** (`elixir -v`) and Mix
-- `git` on `PATH` (patches are applied with `git apply`, not a hand-rolled parser)
-- An **OpenAI-compatible** chat API (OpenAI, xAI, a local server, …)
-- A knowledge base directory with at least one real `boards/<id>/board.toml`
-- Optional: a TamaGo working tree (the checkout the patch applies to) and `tamago-go` on `PATH`
+Need Elixir **1.17+**, Mix, `git` on `PATH`, and an Anthropic **console** API key ([console.anthropic.com/settings/keys](https://console.anthropic.com/settings/keys)). Claude.ai / Claude Code login is not an API key.
 
 ```bash
-git clone <this-repo>
 cd bullshit-clanker
 mix deps.get
-mix test          # 253 tests; skip if you just want to run the app
+
+cp config/secrets.env.example config/secrets.env
+# edit config/secrets.env — paste:
+#   ANTHROPIC_API_KEY=sk-ant-...
+
+mix escript.build
+./bc --kb test/fixtures/acceptance/kb \
+     --tree test/fixtures/acceptance/tree \
+     --spec test/fixtures/acceptance/spec/held-out.md
 ```
+
+`config/secrets.env` is gitignored. No `export`. Default provider is Claude (`claude-sonnet-4-5`). Same file is used by the TUI, `mix bc.kb.ingest`, and `mix bc.accept`. Run those commands from the repo root so the file is found.
+
+You should see:
+
+```text
+bc ready — kb=…/kb boards=4 tree=…/tree model=claude-sonnet-4-5
+```
+
+Starts in **insert** mode (typing goes to the input). Ask it to match the spec and propose a patch. Nearest should be `imx6ul_board_a`.
+
+Optional: `pdftotext` (poppler-utils) for PDF ingest; `tamago-go` on `PATH` to build after apply.
 
 ---
 
-## 1. Point it at a model
-
-Hatch will **refuse to start** without these three:
+## Secrets
 
 ```bash
-export HATCH_API_KEY=sk-...                    # required
-export HATCH_API_BASE=https://api.openai.com/v1
-export HATCH_MODEL=gpt-4o
+# config/secrets.env  (never commit this)
+ANTHROPIC_API_KEY=sk-ant-...
 ```
 
-xAI example:
+Process env wins over the file. Alternate path: `BC_SECRETS=/somewhere/else.env`.
 
-```bash
-export HATCH_API_KEY=xai-...
-export HATCH_API_BASE=https://api.x.ai/v1
-export HATCH_MODEL=grok-4
-```
-
-Optional:
-
-| Env | Default | What |
+| Key | Default | What |
 |-----|---------|------|
-| `HATCH_MODEL_INGEST` | `$HATCH_MODEL` | Cheap model for turning markdown specs into `board.toml` fields |
-| `HATCH_MODEL_BUILD` | unset | Unused in v1 unless you wire it |
-| `HATCH_TAMAGO_GO` | `tamago-go` | Binary for `GOOS=tamago` builds |
-| `HATCH_BUILD_TIMEOUT_MS` | `120000` | Build kill deadline |
+| `ANTHROPIC_API_KEY` | — | Claude console key (or `BC_API_KEY`) |
+| `BC_PROVIDER` | `claude` | `claude` / `anthropic`, `xai` / `grok`, `openai` |
+| `BC_MODEL` | `claude-sonnet-4-5` | Session model |
+| `BC_API_BASE` | `https://api.anthropic.com/v1` | OpenAI-compat base |
+| `BC_MODEL_INGEST` | `$BC_MODEL` | Cheap model for PDF → `board.toml` |
+| `BC_TAMAGO_GO` | `tamago-go` | Binary for `GOOS=tamago` builds |
+| `BC_BUILD_TIMEOUT_MS` | `120000` | Build kill deadline |
 
-`HATCH_API_BASE` is the OpenAI-style root (no trailing slash needed). There is no vendor SDK.
+To use Grok later, put `BC_PROVIDER=xai` and `XAI_API_KEY=...` in the same file. One process, one provider. No vendor SDK — the preset fills base URL, default model, and extra headers (Anthropic needs `anthropic-version`).
 
 ---
 
-## 2. Build a knowledge base
+## Knowledge base
 
 `--kb` is required. The process does not start without it.
-
-Layout:
 
 ```text
 kb/
@@ -72,20 +75,32 @@ kb/
       nets.json           # optional
       schematic.pdf       # optional; never queried live
       tree/               # optional known-good TamaGo overlay
-    some-other-board/
-      board.toml
 ```
 
-Copy the template and fill it from a schematic / existing tree. Empty means **unknown** — do not invent addresses.
+### From PDFs (offline ingest)
+
+Each PDF becomes one board directory. BC extracts the text layer with `pdftotext`, runs the ingest model, and writes **records** (`board.toml`, copied `schematic.pdf`, and `nets.json` only when the document names nets). It does not OCR a scanned blob, and the TUI never reads the PDF again.
 
 ```bash
+mix bc.kb.ingest ./datasheets/usbarmory.pdf             # → kb/boards/usbarmory/
+mix bc.kb.ingest ./datasheets/                          # every *.pdf in the tree
+mix bc.kb.ingest a.pdf b.pdf --force
+# --kb defaults to ./kb
+```
+
+Board id is the filename, slugified (`USB Armory MK2.pdf` → `usb_armory_mk2`). Existing boards are left alone unless you pass `--force`. Fields the PDF does not state stay `unknown`.
+
+`--spec some.pdf` on the TUI is rejected on purpose: ingest is this Mix task, not a live session tool.
+
+### By hand
+
+```bash
+mkdir -p kb/boards/my-board
 cp kb/boards/_example/board.toml kb/boards/my-board/board.toml
 # edit id, soc, ram_*, uart, pinmux, tamago_* …
 ```
 
-Directories whose names start with `_` (like `_example`) are skipped by the loader.
-
-Minimum useful `board.toml`:
+Directories whose names start with `_` (like `_example`) are skipped by the loader. Empty means **unknown** — do not invent addresses.
 
 ```toml
 id = "usbarmory-mk2"
@@ -108,25 +123,17 @@ fn = "ALT3"
 
 v1 is **same SoC, new board**. A brand-new SoC with nothing in the KB is out of scope.
 
-Lint what you wrote:
-
 ```bash
-mix hatch.kb.lint --kb ./kb
+mix bc.kb.lint --kb ./kb
 ```
 
 ---
 
-## 3. Run the TUI
+## TUI
 
 ```bash
-mix escript.build
-./hatch --kb ./kb
-```
-
-With a working tree (the thing that will receive the patch) and a new-board spec:
-
-```bash
-./hatch --kb ./kb --tree ./tamago-overlay --spec ./notes/new-board.md
+./bc --kb ./kb
+./bc --kb ./kb --tree ./tamago-overlay --spec ./notes/new-board.md
 ```
 
 | Flag | Required | What |
@@ -135,23 +142,15 @@ With a working tree (the thing that will receive the patch) and a new-board spec
 | `--tree PATH` | no | Git working tree the patch applies to |
 | `--spec PATH` | no | Markdown or `board.toml` for the **new** board. Ingested once at startup. PDFs are rejected. |
 
-You should see something like:
-
-```text
-hatch ready — kb=/…/kb boards=2 tree=/…/overlay model=gpt-4o
-```
-
-Then the TUI. Starts in **insert** mode (typing goes to the input).
-
-### First bring-up loop
+### Bring-up loop
 
 1. Put two (or more) known-good boards of the **same SoC** in `--kb`.
 2. Point `--tree` at a git checkout of the nearest board’s overlay (or a TamaGo tree).
 3. Pass `--spec` with notes for the new board (SoC, RAM map, UART, pinmux — leave gaps as unknown).
-4. In the TUI, ask it to match the spec and propose a patch.
+4. Ask it to match the spec and propose a patch.
 5. Read the patch pane: nearest board, deltas, citations, diff.
 6. `Esc`, then `a`, then `y` to apply — or `r` to reject. The model cannot apply.
-7. `b` to run `tamago.build` after apply (needs `HATCH_TAMAGO_GO` / `tamago-go` on `PATH`).
+7. `b` to run `tamago.build` after apply (needs `tamago-go` on `PATH`).
 
 ### Keys
 
@@ -182,43 +181,21 @@ Apply is a keybind, not a tool. No patch reaches the tree unless you press `a` t
 
 ---
 
-## Try it on the held-out fixture (no real hardware)
+## Tests and live acceptance
 
-The v1 acceptance KB is three `imx6ul` boards plus one off-SoC decoy:
-
-```bash
-export HATCH_API_KEY=...
-export HATCH_API_BASE=...
-export HATCH_MODEL=...
-
-mix escript.build
-./hatch \
-  --kb test/fixtures/acceptance/kb \
-  --tree test/fixtures/acceptance/tree \
-  --spec test/fixtures/acceptance/spec/held-out.md
-```
-
-Ask it to match the spec and propose a patch. Nearest should be `imx6ul_board_a` (the held-out board is in the KB but excluded from search). `ram_size` and `tamago_board` are deliberately unknown in the spec.
-
-Offline, no model:
+Offline, no model (fake client + fake `tamago-go`):
 
 ```bash
+mix test
 mix test --only acceptance
 ```
 
-That is the scripted “is Hatch done?” check. It uses a recorded fake model and a fake `tamago-go`.
+The acceptance fixture is three `imx6ul` boards plus one off-SoC decoy. The held-out board is in the KB but excluded from search. `ram_size` and `tamago_board` are deliberately unknown in the spec.
 
----
-
-## Live acceptance (real model + real `tamago-go`)
-
-Headless: ingest → one turn → auto-apply with a real permit → `GOOS=tamago` build. Not used in CI. This Mix task is the operator; it is the one place outside the TUI allowed to mint a write permit.
+Live (real Claude + real `tamago-go`), headless: ingest → one turn → auto-apply with a real permit → `GOOS=tamago` build. Not used in CI. This Mix task is the operator; it is the one place outside the TUI allowed to mint a write permit.
 
 ```bash
-export HATCH_API_KEY=...          # required; refuses to start without it
-# HATCH_MODEL defaults to gpt-4o here; HATCH_API_BASE to api.openai.com
-
-mix hatch.accept \
+mix bc.accept \
   --kb test/fixtures/acceptance/kb \
   --spec test/fixtures/acceptance/spec/held-out.md \
   --tree test/fixtures/acceptance/tree
@@ -226,17 +203,13 @@ mix hatch.accept \
 
 Copies `--tree` to a scratch dir so the fixture is never mutated. Exit 0 only if nearest board, citations, apply, and build all pass. Writes `acceptance.json`. `--runs N` repeats and appends `acceptance-history.jsonl`.
 
-```bash
-mix hatch.accept --help
-```
-
 ---
 
-## What Hatch will not do
+## What BC will not do
 
 - Start without `--kb`
 - Call the web, MCP, or a shell
-- Apply a patch without you (`a` `y`, or `mix hatch.accept`)
+- Apply a patch without you (`a` `y`, or `mix bc.accept`)
 - Fill `unknown` fields from training data
 - Port a SoC that has no package in the KB
 

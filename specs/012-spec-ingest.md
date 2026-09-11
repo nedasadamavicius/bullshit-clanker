@@ -14,8 +14,8 @@ draft with `unknown` where the document is silent.
 
 ## Scope
 
-In: `Hatch.Ingest` (API), `Hatch.Ingest.Worker` (bounded fan-out), the extraction prompt,
-the draft-to-session handoff, `hatch` CLI flag for attaching a spec file.
+In: `BC.Ingest` (API), `BC.Ingest.Worker` (bounded fan-out), the extraction prompt,
+the draft-to-session handoff, `bc` CLI flag for attaching a spec file.
 
 Out: PDF/schematic ingest into `nets.json` — explicitly deferred until after the V1
 acceptance test passes (`AGENTS.md` v1 order step 5). `nets.json` is *read* by 003; this
@@ -26,7 +26,7 @@ spec does not generate it.
 ### Entry points
 
 1. `--spec PATH` on the CLI (a markdown file or a `board.toml` draft), read through
-   `Hatch.Sandbox`-equivalent checks — a spec file may live outside the KB, so it is
+   `BC.Sandbox`-equivalent checks — a spec file may live outside the KB, so it is
    opened directly by the operator's own path, read once at startup, and never re-read.
    This is operator input, not a model-reachable path: no tool can read it again.
 2. Pasting text into the TUI prefixed with a `/spec` command line, which sends the buffer
@@ -34,7 +34,7 @@ spec does not generate it.
 
 ### Two paths, chosen by content
 
-- **If the input parses as TOML with an `id` or `soc` key** → `Hatch.KB.Loader` semantics
+- **If the input parses as TOML with an `id` or `soc` key** → `BC.KB.Loader` semantics
   directly (003). No model call. A `board.toml` draft is already a record; running it
   through an LLM can only lose information.
 - **Otherwise (markdown, datasheet excerpt, notes)** → model extraction below.
@@ -59,7 +59,7 @@ Uses `config.ingest_model` (cheap slot) via the 005 client, `temperature: 0`.
 
 ### Merge
 
-`Hatch.Ingest.Merge.merge([chunk_result]) :: {Board.t(), [conflict()]}`
+`BC.Ingest.Merge.merge([chunk_result]) :: {Board.t(), [conflict()]}`
 
 - Scalar fields: first non-conflicting value wins; **two different values for the same
   field is a conflict** → the field becomes `:unknown` and the conflict is reported with
@@ -75,12 +75,12 @@ The result is `{%Board{id: <from --spec filename or operator-supplied>, ...}, co
 
 ### Handoff
 
-`Hatch.Session.set_draft/2` stores it; the system prompt (006) renders it with
+`BC.Session.set_draft/2` stores it; the system prompt (006) renders it with
 `Board.to_facts/1`. Conflicts are shown in the TUI as warnings and are included in the
 prompt as an explicit list: the model must treat a conflicted field as `unknown` and say
 so rather than resolve it.
 
-Optionally `hatch` writes the draft to `<kb>/boards/<id>/board.toml` — **only** on an
+Optionally `bc` writes the draft to `<kb>/boards/<id>/board.toml` — **only** on an
 explicit operator action (a `/save-draft` command), never automatically. The KB has one
 writer and it is the human (`PRODUCT.md`).
 
@@ -110,9 +110,9 @@ writer and it is the human (`PRODUCT.md`).
 
 ## Test plan
 
-`test/hatch/ingest_test.exs` with scripted `Hatch.Model.Fake` responses per chunk,
+`test/bc/ingest_test.exs` with scripted `BC.Model.Fake` responses per chunk,
 including a conflicting pair, a fabricated-evidence case and a hanging chunk.
-`test/hatch/ingest/merge_test.exs` as a pure table test.
+`test/bc/ingest/merge_test.exs` as a pure table test.
 
 ## Constraints
 

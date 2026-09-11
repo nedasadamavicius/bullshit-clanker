@@ -1,4 +1,4 @@
-# Hatch
+# BC
 
 Working name. Rename when it bothers you.
 
@@ -10,7 +10,7 @@ Not a general coding agent. Not a Linux distro porter. Not autopilot firmware.
 
 ## One sentence
 
-You give Hatch a new board spec and a knowledge base of known boards. It matches the new board against that KB, cites the nearest TamaGo trees, and proposes a BSP diff. You apply it.
+You give BC a new board spec and a knowledge base of known boards. It matches the new board against that KB, cites the nearest TamaGo trees, and proposes a BSP diff. You apply it.
 
 ## Problem
 
@@ -29,7 +29,7 @@ OpenCode’s loop, one job, one data source.
 | Model-agnostic API | Autopilot merge | Patch + citations, human apply |
 | Permission on writes | Skills, LSP, desktop | `tamago build` as eval |
 
-Hatch refuses to start without a KB path. Tools that can leave that path do not exist.
+BC refuses to start without a KB path. Tools that can leave that path do not exist.
 
 ---
 
@@ -47,7 +47,7 @@ Two people bringing up TamaGo boards who already have (or will build) a library 
 - Parallel “summarizer agents” that pass prose to the session
 - Feature parity with OpenCode
 
-A brand-new SoC with no package in the KB is out of scope. That is writing a silicon manual in Go. Hatch’s job is **same SoC, new board** (or a close variant).
+A brand-new SoC with no package in the KB is out of scope. That is writing a silicon manual in Go. BC’s job is **same SoC, new board** (or a close variant).
 
 ---
 
@@ -129,9 +129,9 @@ OpenAI-compatible. Do not hardcode a vendor.
 
 | Slot | Config key | Role |
 |---|---|---|
-| Ingest | `HATCH_MODEL_INGEST` | Page/net extract → JSON. Cheap, bounded, parallel. |
-| Session | `HATCH_MODEL` | Match + first patch. Opus / Sol / Grok / whatever. |
-| Build-fix | `HATCH_MODEL_BUILD` optional | Iterate on compiler logs. Can be the session model. |
+| Ingest | `BC_MODEL_INGEST` | Page/net extract → JSON. Cheap, bounded, parallel. |
+| Session | `BC_MODEL` | Match + first patch. Opus / Sol / Grok / whatever. |
+| Build-fix | `BC_MODEL_BUILD` optional | Iterate on compiler logs. Can be the session model. |
 
 Bring-up is two jobs: datasheet-shaped matching (careful, `unknown` allowed) and terminal-shaped `tamago build` loops. Route them if you want; v1 can use one session model.
 
@@ -139,7 +139,7 @@ Ingest workers emit **records**, not summaries. Summaries drop addresses.
 
 ## Elixir architecture
 
-Hatch is a job machine with backpressure, not a swarm of chatbots.
+BC is a job machine with backpressure, not a swarm of chatbots.
 
 ```
 BoardJob.Supervisor          one per spec / session
@@ -162,9 +162,9 @@ TUI v1: scrollback, input, tool trace, patch pane. Ugly is fine. Ratatouille / O
 
 Held-out board, **same SoC** as two boards already in the KB.
 
-1. `hatch --kb ./kb` starts. Refuses without `--kb`.
+1. `bc --kb ./kb` starts. Refuses without `--kb`.
 2. Operator pastes or attaches a new spec (markdown / `board.toml` draft).
-3. Hatch may only read that KB and the working tree. No web.
+3. BC may only read that KB and the working tree. No web.
 4. It names the nearest board and shows deltas with citations.
 5. It proposes a patch against that tree.
 6. Operator applies.
@@ -182,7 +182,7 @@ If this fails, do not add chrome, MCP, or a second agent.
 
 ## Build order
 
-1. Mix app `hatch`. TUI that chats with `HATCH_MODEL` (OpenAI-compat). No tools.
+1. Mix app `bc`. TUI that chats with `BC_MODEL` (OpenAI-compat). No tools.
 2. KB loader + `board.toml` index. Tools: `kb.search`, `kb.read`. Still no writes.
 3. Patch pane + `ws.apply` gated on a keybind. Citations required in the system prompt and checked cheaply (paths must be under KB).
 4. `tamago.build` port. Show the log in the TUI.

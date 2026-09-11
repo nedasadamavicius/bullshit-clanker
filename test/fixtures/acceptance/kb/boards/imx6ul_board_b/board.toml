@@ -7,7 +7,7 @@ ram_size = "0x20000000"
 uart = "UART2"
 peripherals = ["uart", "spi", "eth"]
 tamago_soc = "github.com/usbarmory/tamago/soc/nxp/imx6ul"
-tamago_board = "hatch.local/imx6ul_board_b"
+tamago_board = "bc.local/imx6ul_board_b"
 tree = "tree"
 notes = "Production variant B — UART2 console, SPI, ethernet PHY."
 

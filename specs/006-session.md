@@ -12,16 +12,16 @@ model↔tool loop, broadcasting events, and holding **no write token**.
 
 ## Scope
 
-In: `Hatch.Session`, `Hatch.Session.Prompt`, `Hatch.Session.Transcript`.
+In: `BC.Session`, `BC.Session.Prompt`, `BC.Session.Transcript`.
 
 Out: the TUI (011), tool implementations (007/008), build (010).
 
 ## Design
 
-### `Hatch.Session`
+### `BC.Session`
 
-Child of `Hatch.BoardJob.Supervisor`, registered as
-`{:via, Registry, {Hatch.Registry, {:session, session_id}}}`.
+Child of `BC.BoardJob.Supervisor`, registered as
+`{:via, Registry, {BC.Registry, {:session, session_id}}}`.
 
 ```elixir
 @spec send_message(String.t(), String.t()) :: :ok          # async; events carry the result
@@ -46,13 +46,13 @@ GenServer. The GenServer stays responsive to `cancel/1`, `transcript/1` and even
 Loop, max `@max_steps 12`:
 
 1. Append the user message, broadcast `:user_message`.
-2. Call `model.chat(messages, [model:, tools: Hatch.Tools.schemas(config)], callback)`.
+2. Call `model.chat(messages, [model:, tools: BC.Tools.schemas(config)], callback)`.
    The callback broadcasts `:assistant_delta` per text chunk.
 3. On `{:ok, %{tool_calls: []}}` → append assistant message, broadcast
    `:assistant_message`, `:turn_finished, reason: :ok`. Done.
 4. On tool calls → for each, in order:
    - broadcast `:tool_call_started`,
-   - `Hatch.Tools.call/3`,
+   - `BC.Tools.call/3`,
    - append a `tool` role message with the result string,
    - broadcast `:tool_call_finished` with a one-line `summary` (never the full payload —
      the trace pane is a trace, not a dump).
@@ -72,7 +72,7 @@ well-formed: **every `tool_calls` assistant message must have a matching `tool` 
 or the next request to an OpenAI-compatible endpoint is a 400. Synthesise
 `{"error":{"code":"cancelled"}}` results for calls that never ran.
 
-### `Hatch.Session.Transcript`
+### `BC.Session.Transcript`
 
 - Message list, oldest first. System prompt is index 0 and is never dropped.
 - Bounding: when the estimated token count (chars/4) exceeds `@budget 120_000`, drop from
@@ -82,7 +82,7 @@ or the next request to an OpenAI-compatible endpoint is a 400. Synthesise
   addresses."
 - `@spec append/2`, `@spec bound/2`, `@spec estimate_tokens/1`.
 
-### `Hatch.Session.Prompt`
+### `BC.Session.Prompt`
 
 One function, `system(config, draft)`, returning the system message. It must state, in
 plain language:
@@ -114,7 +114,7 @@ readable in one place, and diffable.
 
 ## Acceptance criteria
 
-Driven entirely by `Hatch.Model.Fake` (005). No network in any test.
+Driven entirely by `BC.Model.Fake` (005). No network in any test.
 
 1. A scripted text-only response produces `:assistant_delta` events then one
    `:assistant_message` and `:turn_finished, :ok`.
@@ -131,7 +131,7 @@ Driven entirely by `Hatch.Model.Fake` (005). No network in any test.
    matching `tool` messages (assert structurally).
 8. Transcript bounding over the budget drops whole assistant+tool groups, keeps the
    system prompt, and inserts the elision marker.
-9. `Hatch.Tools.schemas/1` is what gets passed to the model — asserted by inspecting what
+9. `BC.Tools.schemas/1` is what gets passed to the model — asserted by inspecting what
    `Fake` received — and contains no write tool. **(I4)**
 10. The system prompt contains the words `unknown`, `cite`/`citation`, and a sentence
     saying it cannot apply patches. Assert with a test so nobody quietly softens it.
@@ -139,9 +139,9 @@ Driven entirely by `Hatch.Model.Fake` (005). No network in any test.
 
 ## Test plan
 
-`test/hatch/session_test.exs` with `Fake` scripts per case, subscribing to the session
-topic and asserting the event sequence. `test/hatch/session/transcript_test.exs` for
-bounding. `test/hatch/session/prompt_test.exs` for the prompt obligations.
+`test/bc/session_test.exs` with `Fake` scripts per case, subscribing to the session
+topic and asserting the event sequence. `test/bc/session/transcript_test.exs` for
+bounding. `test/bc/session/prompt_test.exs` for the prompt obligations.
 
 ## Constraints
 

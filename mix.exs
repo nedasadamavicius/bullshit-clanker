@@ -1,13 +1,13 @@
-defmodule Hatch.MixProject do
+defmodule BC.MixProject do
   use Mix.Project
 
   def project do
     [
-      app: :hatch,
+      app: :bc,
       version: "0.1.0",
       elixir: "~> 1.17",
       start_permanent: Mix.env() == :prod,
-      escript: [main_module: Hatch.CLI, name: "hatch"],
+      escript: [main_module: BC.CLI, name: "bc"],
       elixirc_paths: elixirc_paths(Mix.env()),
       deps: deps()
     ]
@@ -20,7 +20,7 @@ defmodule Hatch.MixProject do
   def application do
     [
       extra_applications: [:logger],
-      mod: {Hatch.Application, []}
+      mod: {BC.Application, []}
     ]
   end
 

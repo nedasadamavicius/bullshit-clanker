@@ -6,14 +6,14 @@ Read [`000-overview.md`](000-overview.md) first. Enforces **I6** (unknown is a v
 
 ## Goal
 
-Turn `kb/boards/<id>/board.toml` into a `%Hatch.KB.Board{}` with typed fields, where
-absent means `:unknown` and never means "guess". Plus a `hatch kb lint`-style validation
+Turn `kb/boards/<id>/board.toml` into a `%BC.KB.Board{}` with typed fields, where
+absent means `:unknown` and never means "guess". Plus a `bc kb lint`-style validation
 pass the operator can run before trusting a KB.
 
 ## Scope
 
-In: `Hatch.KB.Board` struct, `Hatch.KB.Loader`, `Hatch.KB.Nets` (nets.json reader),
-validation and the `mix hatch.kb.lint` task.
+In: `BC.KB.Board` struct, `BC.KB.Loader`, `BC.KB.Nets` (nets.json reader),
+validation and the `mix bc.kb.lint` task.
 
 Out: indexing and search (004), ingest from a spec document (012).
 
@@ -21,7 +21,7 @@ Out: indexing and search (004), ingest from a spec document (012).
 
 Add dep `{:toml, "~> 0.7"}`.
 
-### `Hatch.KB.Board`
+### `BC.KB.Board`
 
 Struct exactly as in overview §5. Helpers:
 
@@ -36,7 +36,7 @@ for missing fields — the model must *see* that a field is unknown rather than 
 absent, or it will fill the gap from training data. Hex numbers render as `0x...` with
 the original casing normalised to lowercase digits.
 
-### `Hatch.KB.Loader`
+### `BC.KB.Loader`
 
 ```elixir
 @spec load_all(Path.t()) :: {:ok, [Board.t()], [warning()]} | {:error, err()}
@@ -65,12 +65,12 @@ the original casing normalised to lowercase digits.
 - `soc`, `uart`: trimmed; `soc` also normalised with `normalize_soc/1` (downcase, strip
   `-`/`_`/spaces) into a separate `soc_key` used by search. Keep the original in `soc`
   for display; put `soc_key` on the struct.
-- `schematic`, `tree`: kept as KB-relative paths, **validated through `Hatch.Sandbox.resolve(:kb, _)`**
+- `schematic`, `tree`: kept as KB-relative paths, **validated through `BC.Sandbox.resolve(:kb, _)`**
   and warned (not failed) if they do not exist.
 - Unknown top-level keys are preserved in `raw` and produce one warning each, so the
   operator learns about typos like `ram_base` instead of silently losing the field.
 
-### `Hatch.KB.Nets`
+### `BC.KB.Nets`
 
 ```elixir
 @spec load(Path.t()) :: {:ok, %{nets: [net()], source: String.t()}} | {:error, err()}
@@ -81,9 +81,9 @@ the original casing normalised to lowercase digits.
 optional value. Anything else in the file is preserved untouched under `:extra`.
 Missing file → `{:error, :not_found}`, which callers treat as "no netlist", not a failure.
 
-### `mix hatch.kb.lint`
+### `mix bc.kb.lint`
 
-`mix hatch.kb.lint --kb ./kb` prints, per board: id, soc, and every warning; then a
+`mix bc.kb.lint --kb ./kb` prints, per board: id, soc, and every warning; then a
 summary line `N boards, M warnings`. Exit 1 if any board failed to parse, 0 otherwise
 (warnings do not fail — an incomplete KB is normal, `unknown` is legal).
 
@@ -104,13 +104,13 @@ summary line `N boards, M warnings`. Exit 1 if any board failed to parse, 0 othe
    escapes the KB (`"../../x.pdf"`) is `:unknown` plus a warning. **(I2)**
 9. `to_facts/1` output contains the literal word `unknown` for every absent field and is
    byte-identical across runs for the same input.
-10. `mix hatch.kb.lint --kb ./kb` runs against the repo KB and exits 0.
+10. `mix bc.kb.lint --kb ./kb` runs against the repo KB and exits 0.
 
 ## Test plan
 
-`test/hatch/kb/loader_test.exs` with fixture KBs under `test/fixtures/kb_*/`. At least
+`test/bc/kb/loader_test.exs` with fixture KBs under `test/fixtures/kb_*/`. At least
 one fixture is deliberately broken (bad TOML, bad hex, escaping paths, unknown keys).
-`test/hatch/kb/board_test.exs` for `to_facts/1` determinism (compare two calls and a
+`test/bc/kb/board_test.exs` for `to_facts/1` determinism (compare two calls and a
 golden string).
 
 ## Constraints

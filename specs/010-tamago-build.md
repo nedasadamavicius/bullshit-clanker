@@ -12,7 +12,7 @@ session.
 
 ## Scope
 
-In: `Hatch.Build.Worker` (GenServer, serialised, port with timeout, streaming log).
+In: `BC.Build.Worker` (GenServer, serialised, port with timeout, streaming log).
 
 Out: QEMU / UART golden strings (v2, explicitly not now), the keybind (011), the tool
 schema (007).
@@ -21,7 +21,7 @@ schema (007).
 
 ### Worker
 
-One `Hatch.Build.Worker` per board job, child of `Hatch.BoardJob.Supervisor`
+One `BC.Build.Worker` per board job, child of `BC.BoardJob.Supervisor`
 (`PRODUCT.md`: "Build.Worker ... 1–2 at a time"; v1 is 1).
 
 ```elixir
@@ -50,7 +50,7 @@ Port.open({:spawn_executable, go_bin},
 ```
 
 - `go_bin = System.find_executable(config.tamago_go)`; missing →
-  `{:error, %{code: :no_toolchain, message: "tamago-go not found on PATH (HATCH_TAMAGO_GO=...)"}}`.
+  `{:error, %{code: :no_toolchain, message: "tamago-go not found on PATH (BC_TAMAGO_GO=...)"}}`.
   Checked before spawning, and surfaced at startup so the TUI can grey out the keybind.
 - `GOARCH`/`GOARM` come from the **draft board record** when the session has one,
   defaulting to `arm`/`7`. They are validated against the enums in 003 before being put in
@@ -86,13 +86,13 @@ Port.open({:spawn_executable, go_bin},
 `:build_started` (`build_id`, `argv` — the literal argv list, so the operator can re-run
 it by hand), `:build_log`, `:build_finished`.
 
-`Hatch.Session.note_build/2` appends a transcript note with the exit status and the log
+`BC.Session.note_build/2` appends a transcript note with the exit status and the log
 tail, so the model iterates on the compiler and not on a summary.
 
 ## Acceptance criteria
 
 Tests use a **fake `tamago-go`**: an executable shell script in a tmp dir, pointed at by
-`HATCH_TAMAGO_GO`, which can be told to print, exit non-zero, or sleep forever.
+`BC_TAMAGO_GO`, which can be told to print, exit non-zero, or sleep forever.
 
 1. Exit 0 with output → `{:ok, %{exit_status: 0, timed_out: false, log: <output>}}`, and
    `:build_started` / `:build_log`+ / `:build_finished` are broadcast in order.
@@ -115,7 +115,7 @@ Tests use a **fake `tamago-go`**: an executable shell script in a tmp dir, point
 
 ## Test plan
 
-`test/hatch/build/worker_test.exs`. Fake toolchain scripts written to a tmp dir with
+`test/bc/build/worker_test.exs`. Fake toolchain scripts written to a tmp dir with
 `File.chmod!(0o755)`. Tag the timeout test `@tag :slow` but keep it in the default run —
 it is the one that protects the session.
 

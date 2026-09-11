@@ -20,11 +20,15 @@ erl_crash.dump
 *.ez
 
 # Ignore package tarball (built via "mix hex.build").
-hatch-*.tar
+bc-*.tar
 
 # Generated KB index, rebuilt from board.toml on demand (I6).
 index.sqlite
 
 # Compiled escript binary.
-/hatch
+/bc
+
+# Local API keys. Copy config/secrets.env.example → config/secrets.env.
+/config/secrets.env
+.env
 

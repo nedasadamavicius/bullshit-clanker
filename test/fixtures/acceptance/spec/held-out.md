@@ -1,7 +1,7 @@
 # Held-out bring-up notes
 
 Operator notes for a new i.MX6UL board. This is not a `board.toml`; it is the
-kind of markdown a human pastes into Hatch.
+kind of markdown a human pastes into BC.
 
 ## SoC and toolchain
 

@@ -17,7 +17,7 @@ it in its acceptance criteria.
 | I1 | The process does not start without a KB path. | 001 |
 | I2 | No tool can read outside `kb_root` or `tree_root`. Symlinks out are denied. | 002, 007 |
 | I3 | No HTTP is performed except to the configured model API base. No `web_fetch`, no MCP, no unrestricted shell. | 005, 007 |
-| I4 | The model cannot write. The only write to the tree is `Hatch.Patch.Apply`, and it requires a permit minted by a human keypress. | 009, 011 |
+| I4 | The model cannot write. The only write to the tree is `BC.Patch.Apply`, and it requires a permit minted by a human keypress. | 009, 011 |
 | I5 | Every MMIO / pin / RAM claim in a proposal cites a KB path that was actually read this session. | 008 |
 | I6 | Unknown is a valid value. Absent `board.toml` fields load as `:unknown` and are never filled by the model. | 003, 012 |
 | I7 | One session process talks to the user. Fan-out is ingest/search/build only. | 006, 012 |
@@ -33,7 +33,7 @@ it in its acceptance criteria.
    for the event stream.
 2. **TUI library: Ratatouille.** Picked once, per `AGENTS.md` "pick one and do not shop".
    It gives the four panes and the modal keybinds v1 needs. If `ex_termbox` will not
-   build on the target OTP, fall back to raw ANSI behind the same `Hatch.TUI` boundary —
+   build on the target OTP, fall back to raw ANSI behind the same `BC.TUI` boundary —
    that is the only sanctioned substitution, and it changes no other spec.
 3. **Search ranks in Elixir over ETS; SQLite is the persisted index.** `PRODUCT.md` says
    "sqlite + ETS". v1 KBs are tens of boards, so ranking is a fold over records; SQLite
@@ -66,39 +66,39 @@ Test-only: none. Test doubles are behaviour implementations selected through
 One OTP responsibility per process (`AGENTS.md` "Style").
 
 ```
-Hatch.Application            supervisor: PubSub, KB.Index, BoardJob.Supervisor
-Hatch.CLI                    argv parsing, refuses without --kb          (001)
-Hatch.Config                 %Config{} struct, env resolution            (001)
-Hatch.Sandbox                path confinement                            (002)
+BC.Application            supervisor: PubSub, KB.Index, BoardJob.Supervisor
+BC.CLI                    argv parsing, refuses without --kb          (001)
+BC.Config                 %Config{} struct, env resolution            (001)
+BC.Sandbox                path confinement                            (002)
 
-Hatch.KB.Board               %Board{} struct + :unknown semantics        (003)
-Hatch.KB.Loader              boards/<id>/board.toml -> %Board{}          (003)
-Hatch.KB.Index               GenServer: sqlite + ETS, rebuild on change  (004)
-Hatch.KB.Search              ranking, %Hit{}                             (004)
-Hatch.KB.Delta               draft vs board field deltas                 (004)
+BC.KB.Board               %Board{} struct + :unknown semantics        (003)
+BC.KB.Loader              boards/<id>/board.toml -> %Board{}          (003)
+BC.KB.Index               GenServer: sqlite + ETS, rebuild on change  (004)
+BC.KB.Search              ranking, %Hit{}                             (004)
+BC.KB.Delta               draft vs board field deltas                 (004)
 
-Hatch.Model                  behaviour: chat/3                           (005)
-Hatch.Model.OpenAI           Req + SSE + tool-call assembly              (005)
+BC.Model                  behaviour: chat/3                           (005)
+BC.Model.OpenAI           Req + SSE + tool-call assembly              (005)
 
-Hatch.BoardJob.Supervisor    one supervision tree per session            (001)
-Hatch.Session                GenServer: transcript, tool loop            (006)
-Hatch.Session.Prompt         system prompt, closed-world rules           (006)
-Hatch.Session.Transcript     message list, token-bounded                 (006)
+BC.BoardJob.Supervisor    one supervision tree per session            (001)
+BC.Session                GenServer: transcript, tool loop            (006)
+BC.Session.Prompt         system prompt, closed-world rules           (006)
+BC.Session.Transcript     message list, token-bounded                 (006)
 
-Hatch.Tools                  registry, JSON schemas, dispatch            (007)
-Hatch.Tools.KB               kb.search, kb.read                          (007)
-Hatch.Tools.WS               ws.read, ws.list, ws.diff                   (007)
-Hatch.Tools.Propose          propose_patch                               (008)
+BC.Tools                  registry, JSON schemas, dispatch            (007)
+BC.Tools.KB               kb.search, kb.read                          (007)
+BC.Tools.WS               ws.read, ws.list, ws.diff                   (007)
+BC.Tools.Propose          propose_patch                               (008)
 
-Hatch.Proposal               %Proposal{}, store, validation              (008)
-Hatch.Proposal.Citations     citation check against read-log             (008)
-Hatch.Permit                 single-use write permit                     (009)
-Hatch.Patch.Apply            git apply port                              (009)
+BC.Proposal               %Proposal{}, store, validation              (008)
+BC.Proposal.Citations     citation check against read-log             (008)
+BC.Permit                 single-use write permit                     (009)
+BC.Patch.Apply            git apply port                              (009)
 
-Hatch.Build.Worker           GenServer: tamago-go port, 1 at a time      (010)
-Hatch.TUI                    Ratatouille app + runtime wiring            (011)
-Hatch.TUI.Model              pure state + update/2 (this is what is tested) (011)
-Hatch.Ingest                 spec text -> %Board{} draft                 (012)
+BC.Build.Worker           GenServer: tamago-go port, 1 at a time      (010)
+BC.TUI                    Ratatouille app + runtime wiring            (011)
+BC.TUI.Model              pure state + update/2 (this is what is tested) (011)
+BC.Ingest                 spec text -> %Board{} draft                 (012)
 ```
 
 ## 5. Core structs
@@ -107,20 +107,20 @@ Defined by the spec in brackets; other specs only read them.
 
 ```elixir
 # [001]
-%Hatch.Config{
+%BC.Config{
   kb_root: Path.t(),            # absolute, required
   tree_root: Path.t() | nil,    # absolute
-  model: String.t(),            # HATCH_MODEL
-  ingest_model: String.t(),     # HATCH_MODEL_INGEST, defaults to model
-  build_model: String.t() | nil,# HATCH_MODEL_BUILD
-  api_base: String.t(),         # HATCH_API_BASE
-  api_key: String.t(),          # HATCH_API_KEY
-  tamago_go: String.t(),        # HATCH_TAMAGO_GO, default "tamago-go"
-  build_timeout_ms: pos_integer # HATCH_BUILD_TIMEOUT_MS, default 120_000
+  model: String.t(),            # BC_MODEL
+  ingest_model: String.t(),     # BC_MODEL_INGEST, defaults to model
+  build_model: String.t() | nil,# BC_MODEL_BUILD
+  api_base: String.t(),         # BC_API_BASE
+  api_key: String.t(),          # BC_API_KEY
+  tamago_go: String.t(),        # BC_TAMAGO_GO, default "tamago-go"
+  build_timeout_ms: pos_integer # BC_BUILD_TIMEOUT_MS, default 120_000
 }
 
 # [003] every field may be :unknown except id and source_path
-%Hatch.KB.Board{
+%BC.KB.Board{
   id: String.t(),
   source_path: Path.t(),        # kb-relative, e.g. "boards/mk2/board.toml"
   soc: String.t() | :unknown,
@@ -140,23 +140,23 @@ Defined by the spec in brackets; other specs only read them.
 }
 
 # [004]
-%Hatch.KB.Hit{
-  board: %Hatch.KB.Board{},
+%BC.KB.Hit{
+  board: %BC.KB.Board{},
   score: float(),
   soc_match: :exact | :family,
   why: [String.t()]             # "same soc imx6ul", "uart UART2", "4/5 peripherals"
 }
 
 # [004]
-%Hatch.KB.Delta{field: atom(), draft: term(), board: term(), kind: :same | :differs | :unknown_in_draft | :unknown_in_kb}
+%BC.KB.Delta{field: atom(), draft: term(), board: term(), kind: :same | :differs | :unknown_in_draft | :unknown_in_kb}
 
 # [008]
-%Hatch.Proposal{
+%BC.Proposal{
   id: String.t(),               # "p_" <> 8 hex
   session_id: String.t(),
   nearest_board_id: String.t(),
   summary: String.t(),
-  deltas: [%Hatch.KB.Delta{}],
+  deltas: [%BC.KB.Delta{}],
   citations: [%{path: String.t(), claim: String.t()}],
   patch: String.t(),            # unified diff
   status: :pending | :applied | :rejected | :invalid,
@@ -167,8 +167,8 @@ Defined by the spec in brackets; other specs only read them.
 
 ## 6. Event contract
 
-`Phoenix.PubSub` named `Hatch.PubSub`. Topic: `"session:" <> session_id`.
-Every message is `{:hatch_event, event}` where `event` is a map with `:type` and
+`Phoenix.PubSub` named `BC.PubSub`. Topic: `"session:" <> session_id`.
+Every message is `{:bc_event, event}` where `event` is a map with `:type` and
 `:session_id`. Producers may add fields; consumers must ignore unknown ones.
 
 | `:type` | Fields | Producer |
@@ -193,9 +193,9 @@ No mocking library. Each external boundary is a behaviour whose implementation i
 from application env at call time:
 
 ```elixir
-Application.get_env(:hatch, :model_client, Hatch.Model.OpenAI)   # 005
-Application.get_env(:hatch, :patch_applier, Hatch.Patch.Apply)   # 009
-Application.get_env(:hatch, :builder, Hatch.Build.Worker)        # 010
+Application.get_env(:bc, :model_client, BC.Model.OpenAI)   # 005
+Application.get_env(:bc, :patch_applier, BC.Patch.Apply)   # 009
+Application.get_env(:bc, :builder, BC.Build.Worker)        # 010
 ```
 
 Tests set these in `test/support/`. Production config never sets them.

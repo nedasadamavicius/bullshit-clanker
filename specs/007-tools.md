@@ -12,8 +12,8 @@ tools do not exist) is the product."
 
 ## Scope
 
-In: `Hatch.Tools` (registry, schemas, dispatch, read-log), `Hatch.Tools.KB`,
-`Hatch.Tools.WS`. Read-only tools only.
+In: `BC.Tools` (registry, schemas, dispatch, read-log), `BC.Tools.KB`,
+`BC.Tools.WS`. Read-only tools only.
 
 Out: `propose_patch` (008), `ws.apply` (009), `tamago.build`'s port (010 — this spec
 declares its schema and delegates).
@@ -33,7 +33,7 @@ declares its schema and delegates).
 1. `Jason.decode` → on failure `{:error, %{code: :invalid_args, message: "arguments were
    not valid JSON: ..."}}`. Do not attempt repair.
 2. Validate against the tool's declared arg spec (required keys, types, enum values,
-   integer ranges). A hand-rolled validator in `Hatch.Tools.Args` is sufficient and
+   integer ranges). A hand-rolled validator in `BC.Tools.Args` is sufficient and
    preferred to a JSON-schema library.
 3. Dispatch. Any exception inside a tool is caught and returned as
    `%{code: :tool_crashed, message: Exception.message(e)}` — a bad path from the model
@@ -43,14 +43,14 @@ declares its schema and delegates).
 
 Unknown tool name → `:unknown_tool` with the list of valid names. That list is the
 product boundary; when the model asks for `web_fetch`, the error must say so plainly:
-`"no such tool. hatch has no network and no shell. available: kb.search, kb.read, ws.read, ws.list, ws.diff, tamago.build, propose_patch"`.
+`"no such tool. bc has no network and no shell. available: kb.search, kb.read, ws.read, ws.list, ws.diff, tamago.build, propose_patch"`.
 
 `schemas/1` omits `ws.*` and `tamago.build` when `tree_root` is `nil` — a tool that
 cannot work should not be offered.
 
 ### Read-log
 
-Citations (008) are checked against what was actually read. `Hatch.Tools.ReadLog` is an
+Citations (008) are checked against what was actually read. `BC.Tools.ReadLog` is an
 ETS set owned by the session process, recording `{path, tool, at}` for every successful
 `kb.read` and every KB path returned by `kb.search`. Exposed as
 `@spec read?(ctx(), String.t()) :: boolean()`.
@@ -70,14 +70,14 @@ unfiltered dump of the KB is not a search). Returns JSON:
  "count":1}
 ```
 
-Empty results return `{"hits":[],"count":0,"note":"no board in the KB has this soc. hatch cannot propose a port for an soc with no package in the KB."}` —
+Empty results return `{"hits":[],"count":0,"note":"no board in the KB has this soc. bc cannot propose a port for an soc with no package in the KB."}` —
 the model must be told *why* it is empty, or it will improvise (`PRODUCT.md` non-goal:
 "New SoC packages from a datasheet with nothing in the KB").
 
 Every hit's `path` is logged to the read-log as *citable-on-read*, but a hit alone is not
 a citation: a citation requires `kb.read` of that path (see 008).
 
-**`kb.read`** — args `{path: string, max_bytes?: int}`. `Hatch.Sandbox.read(:kb, path)`.
+**`kb.read`** — args `{path: string, max_bytes?: int}`. `BC.Sandbox.read(:kb, path)`.
 Returns the content wrapped as:
 
 ```
@@ -90,7 +90,7 @@ The wrapper exists so the model can quote a path it is certain of. Errors pass t
 the overview §8 shape; `:binary_file` and `:too_large` messages are the ones from 002.
 
 **`ws.read`** — same, root `:tree`. **`ws.list`** — args `{path?: string, depth?: int 1..3}`,
-returns JSON list from `Hatch.Sandbox.list/3` including `truncated`.
+returns JSON list from `BC.Sandbox.list/3` including `truncated`.
 
 **`ws.diff`** — args `{}`. Runs `git -C <tree_root> diff --no-color` as an argv port
 (I8), 10 s timeout, output truncated to 64 KiB with a trailing `... (truncated)` marker.
@@ -98,7 +98,7 @@ If the tree is not a git repo → `{:error, %{code: :not_a_repo}}`. This shows t
 what is *currently* uncommitted in the tree, which is how it sees the effect of an
 applied patch on the next turn.
 
-**`tamago.build`** — schema declared here, dispatch delegates to `Hatch.Build.Worker`
+**`tamago.build`** — schema declared here, dispatch delegates to `BC.Build.Worker`
 (010). Args `{package?: string}` defaulting to `"./..."`; `package` must match
 `~r{^[A-Za-z0-9._/-]+$}` and must not start with `-` (no flag injection through a
 package name). Returns `{"exit_status":0,"timed_out":false,"log":"..."}` with the log
@@ -138,7 +138,7 @@ anything. Adding one is a `PRODUCT.md` change, not a code change.
 
 ## Test plan
 
-`test/hatch/tools_test.exs` driving `call/3` with the raw strings a model would send,
+`test/bc/tools_test.exs` driving `call/3` with the raw strings a model would send,
 including hostile ones. Fixture KB and a fixture tree (a real `git init` in a tmp dir for
 `ws.diff`, skipped if `git` is absent).
 
