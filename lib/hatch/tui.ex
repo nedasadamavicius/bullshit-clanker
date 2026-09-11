@@ -30,8 +30,12 @@ defmodule Hatch.TUI do
     # Monitor board job supervisor
     Process.monitor(board_job_supervisor)
 
+    # Spawn a task to read keyboard input from stdin
+    self_pid = self()
+    _stdin_reader_pid = spawn_link(fn -> read_stdin_loop(self_pid) end)
+
     # Run the event loop
-    run_event_loop(initial_model, board_job_supervisor)
+    _final_state = run_event_loop(initial_model, board_job_supervisor)
 
     # Clean up: terminate the supervisor
     terminate_supervisor(board_job_supervisor)
@@ -55,7 +59,22 @@ defmodule Hatch.TUI do
     receive do
       {:hatch_event, _event} = hatch_event ->
         new_model = Model.update(model, hatch_event)
-        run_event_loop(new_model, board_job_supervisor)
+
+        case new_model do
+          {:quit, state} -> state
+          state -> run_event_loop(state, board_job_supervisor)
+        end
+
+      {:key, _key} = key_event ->
+        new_model = Model.update(model, key_event)
+
+        case new_model do
+          {:quit, state} -> state
+          state -> run_event_loop(state, board_job_supervisor)
+        end
+
+      {:stdin_eof} ->
+        model
 
       {:DOWN, _ref, :process, _pid, _reason} = down ->
         new_model = Model.update(model, down)
@@ -80,6 +99,54 @@ defmodule Hatch.TUI do
     case Registry.lookup(Hatch.Registry, {:session, session_id}) do
       [{pid, nil}] -> pid
       [] -> nil
+    end
+  end
+
+  defp read_stdin_loop(main_pid) do
+    case IO.read(:stdio, 1) do
+      :eof ->
+        # Send EOF signal to the main loop
+        send(main_pid, {:stdin_eof})
+
+      "" ->
+        # Empty read, treat as EOF
+        send(main_pid, {:stdin_eof})
+
+      char ->
+        # Parse the character into a key event
+        case parse_key(char) do
+          {:key, key} ->
+            send(main_pid, {:key, key})
+
+          :skip ->
+            :ok
+        end
+
+        # Continue reading
+        read_stdin_loop(main_pid)
+    end
+  end
+
+  defp parse_key(char) do
+    case char do
+      "\n" -> {:key, :enter}
+      "\e" -> {:key, :esc}
+      "\t" -> {:key, :tab}
+      "\b" -> {:key, :backspace}
+      "\x03" -> {:key, :"Ctrl+c"}
+      "q" -> {:key, :char_q}
+      "i" -> {:key, :char_i}
+      "j" -> {:key, :char_j}
+      "k" -> {:key, :char_k}
+      "a" -> {:key, :char_a}
+      "r" -> {:key, :char_r}
+      "b" -> {:key, :char_b}
+      "c" -> {:key, :char_c}
+      "y" -> {:key, :char_y}
+      # Note: PgUp/PgDn and arrow keys would need ANSI escape sequence parsing
+      # which requires buffering multiple characters. For now, simple char handling.
+      c when byte_size(c) == 1 -> {:key, String.to_charlist(c) |> hd()}
+      _ -> :skip
     end
   end
 end
