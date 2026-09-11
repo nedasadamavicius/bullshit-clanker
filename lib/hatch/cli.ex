@@ -50,6 +50,7 @@ defmodule Hatch.CLI do
     Options:
       --kb PATH          Path to knowledge base (required)
       --tree PATH        Path to working tree (optional)
+      --spec PATH        Path to board spec (markdown or board.toml)
       --help             Show this help message
       --version          Show version
     """)
